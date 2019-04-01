@@ -996,6 +996,48 @@ function initRelayConfig(data) {
 }
 
 // -----------------------------------------------------------------------------
+// Garage Door
+// -----------------------------------------------------------------------------
+function formatDoorState(state){
+    switch(state){
+        case 1:return "open";
+        case 2:return "closed";
+        case 3:return "opening";
+        case 4:return "closing";
+        default:return "in unknown state";
+    }
+}
+function getDoorClone(){
+    var div = $("#doorConfig > div");
+    if (div.length > 0) { return div; }
+
+    var template = $("#doorConfigTemplate").children();
+    var target = $(template).clone();
+    target.appendTo("#doorConfig");
+    return target;
+}
+function initDoorConfig(data) {
+    var target = getDoorClone();
+    $(".openPin", target).html("GPIO" + data.openPin);
+    $(".closedPin", target).html("GPIO" + data.closedPin);
+    $("input[name='doorMqttOpen']", target).val(data.doorMqttOpen);
+    $("input[name='doorMqttClosed']", target).val(data.doorMqttClosed);
+}
+function updateDoorStatus(data){
+    var target = getDoorClone();
+    var lastTSText = "";
+    var lastTS = data.last;
+
+    if (lastTS && (data.lastState === 3 || data.lastState === 4)){
+        var date = new Date(lastTS * 1000);
+        var action = data.lastState === 3? "opened":"closed";
+        lastTSText = "Door last " + action + " at " + date.toISOString().substring(0, 19).replace("T", " ") + ".";
+    }
+    $(".doorState", target).html(formatDoorState(data.state));
+    $(".doorLast", target).html(lastTSText);
+}
+
+// -----------------------------------------------------------------------------
 // Sensors & Magnitudes
 // -----------------------------------------------------------------------------
 

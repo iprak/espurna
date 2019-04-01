@@ -60,6 +60,9 @@
 #define BUTTON_SET_PULLUP           4
 #endif
 
+#define DOOR_SENSOR_NORMALLY_CLOSED 0
+#define DOOR_SENSOR_NORMALLY_OPEN   1
+
 //------------------------------------------------------------------------------
 // ENCODER
 //------------------------------------------------------------------------------

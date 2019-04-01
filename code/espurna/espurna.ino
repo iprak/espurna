@@ -128,7 +128,9 @@ void setup() {
     #if LED_SUPPORT
         ledSetup();
     #endif
-
+    #if DOOR_SUPPORT
+        doorSetup();
+    #endif
     #if MQTT_SUPPORT
         mqttSetup();
     #endif
