@@ -209,6 +209,30 @@
 #endif
 
 // -----------------------------------------------------------------------------
+// Garage sensor
+// -----------------------------------------------------------------------------
+#ifndef DOOR_OPEN_SENSOR_PIN
+#define DOOR_OPEN_SENSOR_PIN            GPIO_NONE
+#endif
+#ifndef DOOR_CLOSED_SENSOR_PIN
+#define DOOR_CLOSED_SENSOR_PIN          GPIO_NONE
+#endif
+
+#ifndef DOOR_OPEN_SENSOR_TYPE
+#define DOOR_OPEN_SENSOR_TYPE           DOOR_SENSOR_NORMALLY_OPEN
+#endif
+#ifndef DOOR_CLOSED_SENSOR_TYPE
+#define DOOR_CLOSED_SENSOR_TYPE         DOOR_SENSOR_NORMALLY_OPEN
+#endif
+
+#ifndef DOOR_OPEN_SENSOR_PULLUP
+#define DOOR_OPEN_SENSOR_PULLUP         BUTTON_SET_PULLUP | BUTTON_DEFAULT_HIGH
+#endif
+#ifndef DOOR_CLOSED_SENSOR_PULLUP
+#define DOOR_CLOSED_SENSOR_PULLUP       BUTTON_SET_PULLUP | BUTTON_DEFAULT_HIGH
+#endif
+
+// -----------------------------------------------------------------------------
 // Encoders
 // -----------------------------------------------------------------------------
 

@@ -398,8 +398,13 @@ bool relayStatus(unsigned char id, bool status, bool report, bool group_report) 
 
     }
 
-    return changed;
+    #if DOOR_SUPPORT
+        if (changed) {
+            onDoorOperated(_relays[id].pin, status);
+        }
+    #endif
 
+    return changed;
 }
 
 bool relayStatus(unsigned char id, bool status) {
