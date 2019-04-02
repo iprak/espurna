@@ -2,7 +2,7 @@
 
 DOOR CONTROLLER MODULE
 
-Copyright (C) 2018
+Copyright (C) 2019
 
 */
 
@@ -33,6 +33,11 @@ DebounceEvent * _openSensor;
 DebounceEvent * _closedSensor;
 #endif
 
+#if DOOR_BUZZER_PIN != GPIO_NONE
+Ticker _buzzerTicker;
+int _buzzerTickerCount;
+#endif
+
 DoorState _doorState = DoorState_unknown;
 DoorState _lastDoorState = DoorState_unknown;
 time_t _doorStateChangedAt;
@@ -54,7 +59,7 @@ bool _doorSensorWebSocketOnReceive(const char * key, JsonVariant& value) {
     return (strncmp(key, "door", 4) == 0);
 }
 
-void _addDoorStatusJSON(JsonObject& root) {
+void _sendDoorStatusJSON(JsonObject& root) {
     JsonObject& status = root.createNestedObject("doorStatus");
     status["state"] = (uint32_t) _doorState;
     status["last"] = _doorStateChangedAt;
@@ -69,7 +74,7 @@ void _doorSensorWebSocketOnStart(JsonObject& root) {
     config["openPin"] = DOOR_OPEN_SENSOR_PIN;
     config["closedPin"] = DOOR_CLOSED_SENSOR_PIN;
 
-    _addDoorStatusJSON(root);
+    _sendDoorStatusJSON(root);
 }
 #endif
 
@@ -141,7 +146,7 @@ bool _closedSensorEvent() {
 void _doorSensorLoop() {
     if (_openSensorEvent() || _closedSensorEvent()) {
         #if WEB_SUPPORT
-            wsSend(_addDoorStatusJSON);
+            wsSend(_sendDoorStatusJSON);
         #endif
     }
 }
@@ -166,14 +171,30 @@ void doorSetup() {
     espurnaRegisterLoop(_doorSensorLoop);
 }
 
+void _buzzerOnOff() {
+    DEBUG_MSG_P(PSTR("[DOOR] Buzzer on off\n"));
+    _buzzerTickerCount++;
+    digitalWrite(DOOR_BUZZER_PIN, (_buzzerTickerCount % 2) == 0); 
+    if (_buzzerTickerCount > 5){
+        _buzzerTicker.detach();
+    }
+}
+
 // Called from relay module
 void onDoorOperated(unsigned char pin, bool status) {
+    //https://www.hackster.io/taunoerik/self-drive-piezo-buzzer-e9786f
+
     if (status && (pin == RELAY1_PIN)) {
-        //#if DOOR_BUZZER_PIN != GPIO_NONE
-        //    DEBUG_MSG_P(PSTR("[DOOR] Buzzer on\n"));
-        //    digitalWrite(DOOR_BUZZER_PIN, true);
-        //    _buzzerTicker.once_ms(1500, _buzzerOff);
-        //#endif
+        #if DOOR_BUZZER_PIN != GPIO_NONE
+            _buzzerTickerCount = 0;
+            _buzzerTicker.detach();
+
+            DEBUG_MSG_P(PSTR("[DOOR] Buzzer on\n"));
+            digitalWrite(DOOR_BUZZER_PIN, true);
+            
+            _buzzerTickerCount ++;
+            _buzzerTicker.attach(1, _buzzerOnOff);
+        #endif
     }
 }
 

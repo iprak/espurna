@@ -217,6 +217,9 @@
 #ifndef DOOR_CLOSED_SENSOR_PIN
 #define DOOR_CLOSED_SENSOR_PIN          GPIO_NONE
 #endif
+#ifndef DOOR_BUZZER_PIN
+#define DOOR_BUZZER_PIN                 GPIO_NONE
+#endif
 
 #ifndef DOOR_OPEN_SENSOR_TYPE
 #define DOOR_OPEN_SENSOR_TYPE           DOOR_SENSOR_NORMALLY_OPEN
