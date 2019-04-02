@@ -1643,6 +1643,15 @@ function processData(data) {
             return;
         }
 
+        //Door configuration
+        if ("doorConfig" === key) {
+            initDoorConfig(value);
+            return;
+        }
+        if ("doorStatus" === key) {
+            updateDoorStatus(value);
+            return;
+        }
         // ---------------------------------------------------------------------
         // LEDs
         // ---------------------------------------------------------------------
