@@ -12,7 +12,6 @@ Copyright (C) 2019
 
 #if DOOR_SUPPORT
 
-#include <TimeLib.h>
 #include <DebounceEvent.h>
 #include <Ticker.h>
 
@@ -193,7 +192,7 @@ void onDoorOperated(unsigned char pin, bool status) {
             digitalWrite(DOOR_BUZZER_PIN, true);
             
             _buzzerTickerCount ++;
-            _buzzerTicker.attach(1, _buzzerOnOff);
+            _buzzerTicker.attach_ms(750, _buzzerOnOff);
         #endif
     }
 }
