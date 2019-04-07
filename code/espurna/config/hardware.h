@@ -3713,38 +3713,39 @@
     #define RF_SUPPORT          1
 
 #elif defined(AMICA_GARAGE_OPENER)
-    #define MANUFACTURER            "INDU"
-	#define DEVICE                  "AMICA_GARAGE_OPENER"
+    #define MANUFACTURER                "NODEMCU"
+	#define DEVICE                      "GARAGE_OPENER"
 	
-    #define RELAY1_PIN          12  //D6
-    #define RELAY1_TYPE         RELAY_TYPE_INVERSE
-	
-	#define LED1_PIN            2   //D4
-	#define LED1_PIN_INVERSE    1
+    #define RELAY1_PIN                  16  //D0
+    #define RELAY1_TYPE                 RELAY_TYPE_INVERSE	
+	#define LED1_PIN                    2   //D4
+	#define LED1_PIN_INVERSE            1
 
     //RELAY1 gets used
     #define DOOR_SUPPORT                1
-	#define DOOR_OPEN_SENSOR_PIN        0   //D3
-    //#define DOOR_OPEN_SENSOR_TYPE     DOOR_SENSOR_NORMALLY_OPEN
-    #define DOOR_CLOSED_SENSOR_PIN      14  //D5
-    #define DOOR_CLOSED_SENSOR_TYPE     DOOR_SENSOR_NORMALLY_CLOSED
-    #define DOOR_BUZZER_PIN             13
+	#define DOOR_OPEN_SENSOR_PIN        14  //D5
+    #define DOOR_OPEN_SENSOR_TYPE       DOOR_SENSOR_NORMALLY_OPEN
+    #define DOOR_CLOSED_SENSOR_PIN      12  //D6
+    #define DOOR_CLOSED_SENSOR_TYPE     DOOR_SENSOR_NORMALLY_OPEN
+    #define DOOR_BUZZER_PIN             13  //D7
 
+    // DS18B20
+    #define DALLAS_SUPPORT             	1
+    #define DALLAS_PIN                 	5   //D1
+    //Don't use GPIO 0,2,15 D3,D4,D8
+
+    //Future RC Support
+    
     #define RELAY_MQTT_ON               "on"
     #define RELAY_MQTT_OFF              "off"
     #define HOMEASSISTANT_PAYLOAD_ON    "on"
     #define HOMEASSISTANT_PAYLOAD_OFF   "off"
-    #define ALEXA_SUPPORT           0
-	#define DOMOTICZ_SUPPORT        0
-	#define SCHEDULER_SUPPORT       0
-	#define THINGSPEAK_SUPPORT      0
-    #define API_SUPPORT             0
-    #define HOMEASSISTANT_SUPPORT   0
-
-    // DS18B20
-    #define DALLAS_SUPPORT             	1
-    #define DALLAS_PIN                 	4   //D2
-
+    #define ALEXA_SUPPORT               0
+	#define DOMOTICZ_SUPPORT            0
+	#define SCHEDULER_SUPPORT           0
+	#define THINGSPEAK_SUPPORT          0
+    #define API_SUPPORT                 0
+    #define HOMEASSISTANT_SUPPORT       0
 #endif
 
 // -----------------------------------------------------------------------------
