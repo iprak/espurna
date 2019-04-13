@@ -194,8 +194,6 @@ void _rfbSendRaw(const byte *message, const unsigned char n = RF_MESSAGE_SIZE) {
 void _rfbSend(byte * message) {
     #if RFB_DIRECT
         unsigned int protocol = message[1];
-        DEBUG_MSG_P(PSTR("[RF] %d %d %d %d\n"), message[1], message[2], message[3], message[4]);
-        DEBUG_MSG_P(PSTR("[RF] %d %d %d %d\n"), message[5], message[6], message[7], message[8]);
         unsigned int timing =
             (message[2] <<  8) |
             (message[3] <<  0) ;
@@ -205,10 +203,6 @@ void _rfbSend(byte * message) {
             (message[6] << 16) |
             (message[7] <<  8) |
             (message[8] <<  0) ;
-        DEBUG_MSG_P(PSTR("[RF] protocol=%d, bitlength=%d, timing=%d, code=%d\n"), protocol, bitlength, timing, rf_code);
-        //timing = 594;
-        //protocol = 5;
-        //DEBUG_MSG_P(PSTR("[RF] protocol=%d, bitlength=%d, timing=%d, code=%d\n"), protocol, bitlength, timing, rf_code);
         _rfModem->setProtocol(protocol);
         if (timing > 0) {
             _rfModem->setPulseLength(timing);
@@ -420,17 +414,14 @@ void _rfbReceive() {
                 if ( rf_code > 0) {
                     DEBUG_MSG_P(PSTR("[RF] Received code: %08X\n"), rf_code);
                     unsigned int timing = _rfModem->getReceivedDelay();
-                    DEBUG_MSG_P(PSTR("[RF] Received timing: %d\n"), timing);
                     memset(_uartbuf, 0, sizeof(_uartbuf));
                     unsigned char *msgbuf = _uartbuf + 1;
                     _uartbuf[0] = _learning ? RF_CODE_LEARN_OK: RF_CODE_RFIN;
                     msgbuf[0] = 0xC0;
                     msgbuf[1] = _rfModem->getReceivedProtocol();
-                    DEBUG_MSG_P(PSTR("[RF] Received protocol: %d\n"), msgbuf[1]);
                     msgbuf[2] = timing  >>  8;
                     msgbuf[3] = timing  >>  0;
                     msgbuf[4] = _rfModem->getReceivedBitlength();
-                    DEBUG_MSG_P(PSTR("[RF] Received bitLength: %d\n"), msgbuf[4]);
                     msgbuf[5] = rf_code >> 24;
                     msgbuf[6] = rf_code >> 16;
                     msgbuf[7] = rf_code >>  8;

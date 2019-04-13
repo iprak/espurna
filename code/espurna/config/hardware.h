@@ -685,33 +685,44 @@
 #elif defined(ITEAD_SONOFF_RFBRIDGE)
 
     // Info
-    #define MANUFACTURER        "AMICA"
-    #define DEVICE              "NODEMCU"
+    #define MANUFACTURER        "ITEAD"
+    #define DEVICE              "SONOFF_RFBRIDGE"
     #define RELAY_PROVIDER      RELAY_PROVIDER_RFBRIDGE
-    #define RFB_DIRECT          1
-    #define DUMMY_RELAY_COUNT   1
+
+    // Number of virtual switches
+    #ifndef DUMMY_RELAY_COUNT
+    #define DUMMY_RELAY_COUNT   8
+    #endif
 
     // Buttons
-    //#define BUTTON1_PIN         0
-    //#define BUTTON1_MODE        BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH
+    #define BUTTON1_PIN         0
+    #define BUTTON1_MODE        BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH
 
     // LEDs
-    #define LED1_PIN            2   //D4
-	#define LED1_PIN_INVERSE    1
-    
-    #define RFB_RX_PIN          12  //D5
-    #define RFB_TX_PIN          14  //D6
+    #define LED1_PIN            13
+    #define LED1_PIN_INVERSE    1
 
-    #define RELAY_MQTT_ON     "on"
-    #define RELAY_MQTT_OFF    "off"
-    #define HOMEASSISTANT_PAYLOAD_ON    "on"
-    #define HOMEASSISTANT_PAYLOAD_OFF   "off"
-    #define ALEXA_SUPPORT           0
-	#define DOMOTICZ_SUPPORT        0
-	#define SCHEDULER_SUPPORT       0
-	#define THINGSPEAK_SUPPORT      0
-    #define API_SUPPORT             0
-    #define HOMEASSISTANT_SUPPORT   0
+    // RFB Direct hack thanks to @wildwiz
+    // https://github.com/xoseperez/espurna/wiki/Hardware-Itead-Sonoff-RF-Bridge---Direct-Hack
+    #ifndef RFB_DIRECT
+    #define RFB_DIRECT          0
+    #endif
+
+    #ifndef RFB_RX_PIN
+    #define RFB_RX_PIN          4   // GPIO for RX when RFB_DIRECT
+    #endif
+
+    #ifndef RFB_TX_PIN
+    #define RFB_TX_PIN          5   // GPIO for TX when RFB_DIRECT
+    #endif
+
+    // When using un-modified harware, ESPurna communicates with the secondary
+    // MCU EFM8BB1 via UART at 19200 bps so we need to change the speed of
+    // the port and remove UART noise on serial line
+    #if not RFB_DIRECT
+    #define SERIAL_BAUDRATE         19200
+    #define DEBUG_SERIAL_SUPPORT    0
+    #endif
 
 #elif defined(ITEAD_SONOFF_B1)
 
