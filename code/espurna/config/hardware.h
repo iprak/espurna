@@ -3712,10 +3712,13 @@
     #define SSDP_SUPPORT        1
     #define RF_SUPPORT          1
 
-#elif defined(AMICA_GARAGE_OPENER)
+#elif defined(NODEMCU_GARAGE_DOOR)
     #define MANUFACTURER                "NODEMCU"
-	#define DEVICE                      "GARAGE_OPENER"
+	#define DEVICE                      "GARAGE_DOOR"
 	
+    //NodeMCU has 2 LED - 2 (D4), 16 (D0)
+    //Relay is inversed using GPIO0 (D3) activates it on startup
+
     #define RELAY1_PIN                  16  //D0
     #define RELAY1_TYPE                 RELAY_TYPE_INVERSE	
 	#define LED1_PIN                    2   //D4
@@ -3731,10 +3734,10 @@
 
     // DS18B20
     #define DALLAS_SUPPORT             	1
-    #define DALLAS_PIN                 	5   //D1
-    //Don't use GPIO 0,2,15 D3,D4,D8
+    #define DALLAS_PIN                 	5  //D1
 
-    //Future RC Support
+    //RC Switch
+    #define RFB_TX_PIN                  4  //D2
     
     #define RELAY_MQTT_ON               "on"
     #define RELAY_MQTT_OFF              "off"
