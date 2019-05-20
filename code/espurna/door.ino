@@ -10,8 +10,6 @@ Copyright (C) 2019 Indu Prakash
 // DOOR CONTROLLER
 // -----------------------------------------------------------------------------
 
-#define DOOR_SUPPORT 1
-
 #if DOOR_SUPPORT
 #include <TimeLib.h>
 #include <DebounceEvent.h>
@@ -32,16 +30,15 @@ enum DoorState : uint32_t
 
 DebounceEvent *_openSensor;
 DebounceEvent *_closedSensor;
-
-#if DOOR_BUZZER_PIN != GPIO_NONE
 Ticker _buzzerTicker;
 int _buzzerTickerCount;
-#endif
-
 unsigned int _doorState = DoorState_unknown;
 unsigned int _lastDoorState = DoorState_unknown;
 time_t _doorStateChangedAt;
 bool _performingDoorCommand;
+Ticker _doorRelayPulseTicker;
+bool _doorRelayPulseTickerActive;
+unsigned int _queuedCmd = DoorState_unknown;
 
 String _stateToString(unsigned int state)
 {
@@ -80,11 +77,11 @@ void _doorSensorWebSocketOnStart(JsonObject &root)
 {
     root["doorVisible"] = 1;
     JsonObject &config = root.createNestedObject("doorConfig");
-    config["doorMqttOpen"] = getSetting("doorMqttOpen");
-    config["doorMqttClosed"] = getSetting("doorMqttClosed");
+    config["doorOpenSensor"] = getSetting("doorOpenSensor");
+    config["doorClosedSensor"] = getSetting("doorClosedSensor");
     config["openPin"] = DOOR_OPEN_SENSOR_PIN;
     config["closedPin"] = DOOR_CLOSED_SENSOR_PIN;
-    config["mqttDoor"] = getSetting("mqttDoor");
+    config["doorCmd"] = getSetting("doorCmd");
 
     _sendDoorStatusJSON(root);
 }
@@ -140,11 +137,11 @@ bool _openSensorEvent()
     _doorState = sensorClosed ? DoorState_open : DoorState_closing;
     _doorStateChangedAt = now();
     DEBUG_MSG_P(PSTR("[DOOR] Open sensor, %s, doorState=%u\n"), sensorClosed ? "closed" : "open", _doorState);
-    //_sendMqttRaw("doorMqttOpen", sensorClosed);
+    _sendMqttRaw("doorOpenSensor", sensorClosed);
 
     if (sensorClosed)
     {
-        _sendMqttRaw("mqttDoor", "open");
+        //_sendMqttRaw("doorCmd", "open");
     }
 
     return true;
@@ -168,11 +165,11 @@ bool _closedSensorEvent()
     _doorState = sensorClosed ? DoorState_closed : DoorState_opening;
     _doorStateChangedAt = now();
     DEBUG_MSG_P(PSTR("[DOOR] Closed sensor, %s, doorState=%u\n"), sensorClosed ? "closed" : "open", _doorState);
-    //_sendMqttRaw("doorMqttClosed", sensorClosed);
+    _sendMqttRaw("doorClosedSensor", sensorClosed);
 
     if (sensorClosed)
     {
-        _sendMqttRaw("mqttDoor", "closed");
+        //_sendMqttRaw("doorCmd", "closed");
     }
 
     return true;
@@ -188,9 +185,7 @@ void _doorSensorLoop()
     }
 }
 
-Ticker _doorRelayPulseTicker;
-bool _doorRelayPulseTickerActive;
-unsigned int _queuedCmd = DoorState_unknown;
+
 void _doorRelayOff()
 {
     _doorRelayPulseTickerActive = false;
@@ -229,7 +224,7 @@ void _updateState(unsigned int state)
 {
     _doorState = state;
 
-    String t = getSetting("mqttDoor");
+    String t = getSetting("doorCmd");
     if (t.length() > 0)
     {
         String stateStr = _stateToString(state);
@@ -325,7 +320,7 @@ void close()
 
 void _doorMQTTCallback(unsigned int type, const char *topic, const char *payload)
 {
-    String t = getSetting("mqttDoor");
+    String t = getSetting("doorCmd");
     if (t.length() == 0)
         return;
 
@@ -336,7 +331,6 @@ void _doorMQTTCallback(unsigned int type, const char *topic, const char *payload
     else if (type == MQTT_MESSAGE_EVENT)
     {
         DEBUG_MSG_P(PSTR("[DOOR] MQTT payload=%s\n"), payload);
-
         if (strcmp(payload, "open") == 0)
         {
             open();
@@ -361,7 +355,6 @@ void doorSetup()
     _openSensor = new DebounceEvent(DOOR_OPEN_SENSOR_PIN, BUTTON_SWITCH | DOOR_OPEN_SENSOR_PULLUP);
     _closedSensor = new DebounceEvent(DOOR_CLOSED_SENSOR_PIN, BUTTON_SWITCH | DOOR_CLOSED_SENSOR_PULLUP);
     _initializeDoorState();
-
     DEBUG_MSG_P(PSTR("[DOOR] Sensors registered\n"));
 
 // Websocket Callbacks

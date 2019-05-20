@@ -3749,6 +3749,37 @@
 	#define THINGSPEAK_SUPPORT          0
     #define API_SUPPORT                 0
     #define HOMEASSISTANT_SUPPORT       0
+
+#elif defined(ESP12_GARAGE_DOOR)
+    #define MANUFACTURER                "ESP12"
+	#define DEVICE                      "GARAGE_DOOR"
+	
+    //NodeMCU has 2 LED - 2 (D4), 16 (D0)
+    //Relay is inversed using GPIO0 (D3) activates it on startup
+
+    #define RELAY1_PIN                  16  
+    #define RELAY1_TYPE                 RELAY_TYPE_INVERSE	
+	#define LED1_PIN                    2   //D4
+	#define LED1_PIN_INVERSE            1
+
+    //RELAY1 gets used
+    #define DOOR_SUPPORT                1
+	#define DOOR_OPEN_SENSOR_PIN        14  
+    #define DOOR_OPEN_SENSOR_TYPE       DOOR_SENSOR_NORMALLY_OPEN
+    #define DOOR_CLOSED_SENSOR_PIN      12  
+    #define DOOR_CLOSED_SENSOR_TYPE     DOOR_SENSOR_NORMALLY_OPEN
+    #define DOOR_BUZZER_PIN             13
+    
+    #define RELAY_MQTT_ON               "on"
+    #define RELAY_MQTT_OFF              "off"
+    #define HOMEASSISTANT_PAYLOAD_ON    "on"
+    #define HOMEASSISTANT_PAYLOAD_OFF   "off"
+    #define ALEXA_SUPPORT               0
+	#define DOMOTICZ_SUPPORT            0
+	#define SCHEDULER_SUPPORT           0
+	#define THINGSPEAK_SUPPORT          0
+    #define API_SUPPORT                 0
+    #define HOMEASSISTANT_SUPPORT       0
 #endif
 
 // -----------------------------------------------------------------------------
