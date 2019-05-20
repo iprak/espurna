@@ -1078,9 +1078,9 @@ function initDoorConfig(data) {
     var target = getDoorClone();
     $(".openPin", target).html("GPIO" + data.openPin);
     $(".closedPin", target).html("GPIO" + data.closedPin);
-    $("input[name='doorMqttOpen']", target).val(data.doorMqttOpen);
-    $("input[name='doorMqttClosed']", target).val(data.doorMqttClosed);
-    $("input[name='mqttDoor']", target).val(data.mqttDoor);
+    $("input[name='doorOpenSensor']", target).val(data.doorOpenSensor);
+    $("input[name='doorClosedSensor']", target).val(data.doorClosedSensor);
+    $("input[name='doorCmd']", target).val(data.doorCmd);
 }
 function updateDoorStatus(data){
     var target = getDoorClone();
