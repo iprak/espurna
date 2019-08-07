@@ -389,6 +389,40 @@ function doResetThermostatCounters(ask) {
 }
 <!-- endRemoveIf(!thermostat)-->
 
+function initGPIO(node, name, key, value) {
+
+    var template = $("#gpioConfigTemplate").children();
+    var line = $(template).clone();
+    $("span.id", line).html(value);
+    $("select", line).attr("name", key);
+    line.appendTo(node);
+
+}
+
+function initSelectGPIO(select) {
+    // TODO: cross-check used GPIOs
+    // TODO: support 9 & 10 with esp8285 variant
+    var mapping = [
+        [153, "NONE"],
+        [0, "0"],
+        [1, "1 (U0TXD)"],
+        [2, "2 (U1TXD)"],
+        [3, "3 (U0RXD)"],
+        [4, "4"],
+        [5, "5"],
+        [12, "12 (MTDI)"],
+        [13, "13 (MTCK)"],
+        [14, "14 (MTMS)"],
+        [15, "15 (MTDO)"],
+    ];
+    for (n in mapping) {
+        var elem = $('<option value="' + mapping[n][0] + '">');
+        elem.html(mapping[n][1]);
+        elem.appendTo(select);
+    }
+}
+
+
 // -----------------------------------------------------------------------------
 // Actions
 // -----------------------------------------------------------------------------
@@ -1344,10 +1378,6 @@ function processData(data) {
             return;
         }
 
-        if ("rfbrawVisible" === key) {
-            $("input[name='rfbcode']").attr("maxlength", 116);
-        }
-
         if ("rfb" === key) {
             var rfb = data.rfb;
 
@@ -1916,6 +1946,10 @@ $(function() {
         filters[i] = false;
     }
     <!-- endRemoveIf(!rfm69)-->
+
+    $(".gpio-select").each(function(_, elem) {
+        initSelectGPIO(elem)
+    });
 
     $(document).on("change", "input", hasChanged);
     $(document).on("change", "select", hasChanged);

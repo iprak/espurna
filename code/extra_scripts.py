@@ -8,6 +8,9 @@ import click
 
 Import("env", "projenv")
 
+PIO_PLATFORM = env.PioPlatform()
+FRAMEWORK_DIR = PIO_PLATFORM.get_package_dir("framework-arduinoespressif8266")
+
 # ------------------------------------------------------------------------------
 # Utils
 # ------------------------------------------------------------------------------
@@ -43,6 +46,31 @@ def print_filler(fill, color=Color.WHITE, err=False):
 
     out = sys.stderr if err else sys.stdout
     print(clr(color, fill * width), file=out)
+
+def ldscript_inject_libpath():
+
+    # espressif8266@1.5.0 did not append this directory into the LIBPATH
+    libpath_sdk = os.path.join(FRAMEWORK_DIR, "tools", "sdk", "ld")
+    env.Append(LIBPATH=[libpath_sdk])
+
+    libpath_base = os.path.join("$PROJECT_DIR", "..", "dist", "ld")
+    env.Append(LIBPATH=[
+        os.path.join(libpath_base, "pre_2.5.0")
+    ])
+
+    # local.eagle.app.v6.common.ld exists only with Core >2.5.0
+    def check_local_ld(target ,source, env):
+        local_ld = env.subst(os.path.join("$BUILD_DIR", "ld", "local.eagle.app.v6.common.ld"))
+        if os.path.exists(local_ld):
+            env.Prepend(LIBPATH=[
+                os.path.join(libpath_base, "latest")
+            ])
+
+    env.AddPreAction(
+        os.path.join("$BUILD_DIR", "firmware.elf"),
+        check_local_ld
+    )
+
 
 # ------------------------------------------------------------------------------
 # Callbacks
@@ -92,6 +120,33 @@ def dummy_ets_printf(target, source, env):
     env.Execute(env.VerboseAction(" ".join(cmd), "Removing ets_printf / ets_printf_P"))
     env.Depends(postmortem_obj_file,"$BUILD_DIR/src/dummy_ets_printf.c.o")
 
+def patch_lwip():
+    # ignore when building with lwip2
+    if "lwip_gcc" not in env["LIBS"]:
+        return
+
+    toolchain_prefix = os.path.join(PIO_PLATFORM.get_package_dir("toolchain-xtensa"), "bin", "xtensa-lx106-elf-")
+
+    patch_action = env.VerboseAction(" ".join([
+        "-patch", "-u", "-N", "-d",
+        os.path.join(FRAMEWORK_DIR, "tools", "sdk", "lwip"),
+        os.path.join("src", "core", "tcp_out.c"),
+        env.subst(os.path.join("$PROJECT_DIR", "..", "dist", "patches", "lwip_mtu_issue_1610.patch"))
+    ]), "Patching lwip source")
+    build_action = env.VerboseAction(" ".join([
+        "make", "-C", os.path.join(FRAMEWORK_DIR, "tools", "sdk", "lwip", "src"),
+        "install",
+        "TOOLS_PATH={}".format(toolchain_prefix),
+        "LWIP_LIB=liblwip_gcc.a"
+    ]), "Rebuilding lwip")
+
+    patcher = env.Alias("patch-lwip", None, patch_action)
+    builder = env.Alias("build-lwip", patcher, build_action)
+    if os.environ.get("ESPURNA_PIO_PATCH_ISSUE_1610"):
+        env.Depends("$BUILD_DIR/${PROGNAME}.elf", builder)
+    env.AlwaysBuild(patcher)
+    env.AlwaysBuild(builder)
+
 # ------------------------------------------------------------------------------
 # Hooks
 # ------------------------------------------------------------------------------
@@ -101,6 +156,7 @@ projenv.ProcessUnFlags("-w")
 
 # 2.4.0 and up
 remove_float_support()
+ldscript_inject_libpath()
 
 # two-step update hint when using 1MB boards
 env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", check_size)
@@ -109,3 +165,7 @@ env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", check_size)
 if "DISABLE_POSTMORTEM_STACKDUMP" in env["CPPFLAGS"]:
     env.AddPostAction("$BUILD_DIR/FrameworkArduino/core_esp8266_postmortem.c.o", dummy_ets_printf)
     env.AddPostAction("$BUILD_DIR/FrameworkArduino/core_esp8266_postmortem.cpp.o", dummy_ets_printf)
+
+# patch lwip1 sources conditionally:
+# https://github.com/xoseperez/espurna/issues/1610
+patch_lwip()
