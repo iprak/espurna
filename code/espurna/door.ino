@@ -186,6 +186,15 @@ void _checkSchedule()
         if (timeLeft == 0)
         {
             DEBUG_MSG_P(PSTR("[DOOR] Automatically closing the door\n"));
+            
+            String topic = getSetting("mqttTopic", MQTT_TOPIC);            
+            if (topic.length() > 0)
+            {                
+                if (topic.endsWith("/")) topic.remove(topic.length() - 1);
+                topic.concat("/notify");
+                mqttSendRaw(topic.c_str(), "Automatically closing the door");
+            }
+
             relayStatus(0, true);
             //_pulseRelay();
         }
