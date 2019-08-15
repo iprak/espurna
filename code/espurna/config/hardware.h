@@ -4105,8 +4105,9 @@
     //Available: 4, 5, 12, 13, 14, 16 (pull down)
     // 1 (TX), 3 (RX) can be used if DEBUG_SERIAL_SUPPORT = 0
     
-    #define RELAY1_PIN                  16  
-    #define RELAY1_TYPE                 RELAY_TYPE_INVERSE	
+    #define RELAY1_PIN                  5
+    //#define RELAY1_PIN                  16
+    //#define RELAY1_TYPE                 RELAY_TYPE_INVERSE	
 	#define LED1_PIN                    2 //built-in
 	#define LED1_PIN_INVERSE            1
 
@@ -4116,7 +4117,7 @@
     #define DOOR_OPEN_SENSOR_TYPE       DOOR_SENSOR_NORMALLY_OPEN
     #define DOOR_CLOSED_SENSOR_PIN      13  
     #define DOOR_CLOSED_SENSOR_TYPE     DOOR_SENSOR_NORMALLY_OPEN
-    #define DOOR_BUZZER_PIN             5
+    //#define DOOR_BUZZER_PIN             5
 
     #define DHT_SUPPORT             	1
     #define DHT_PIN                 	14
