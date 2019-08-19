@@ -22,21 +22,15 @@ enum DoorState : uint32_t
     DoorState_open = 1,
     DoorState_closed = 2,
     DoorState_opening = 3,
-    DoorState_closing = 4,
-
-    DoorState_open_command = 9,
-    DoorState_closed_command = 10
+    DoorState_closing = 4
 };
 
-DebounceEvent *_openSensor;
-DebounceEvent *_closedSensor;
-Ticker _buzzerTicker;
+DebounceEvent *_openSensor, *_closedSensor;
+Ticker _buzzerTicker, _doorRelayPulseTicker;
 int _buzzerTickerCount;
 unsigned int _doorState = DoorState_unknown;
-unsigned int _lastDoorState = DoorState_unknown;
 time_t _doorStateChangedAt;
-Ticker _doorRelayPulseTicker;
-bool _doorRelayPulseTickerActive;
+bool _doorRelayPulseTickerActive, _notificationSent, _openSensorPressed, _closedSensorPressed;
 
 #if WEB_SUPPORT
 
@@ -50,7 +44,8 @@ void _sendDoorStatusJSON(JsonObject &root)
     JsonObject &status = root.createNestedObject("doorStatus");
     status["state"] = (uint32_t)_doorState;
     status["last"] = _doorStateChangedAt;
-    status["lastState"] = (uint32_t)_lastDoorState;
+    status["closedSensorP"] = _closedSensorPressed;
+    status["openSensorP"] = _openSensorPressed;
 }
 
 void _doorSensorWebSocketOnStart(JsonObject &root)
@@ -70,23 +65,25 @@ void _doorSensorWebSocketOnStart(JsonObject &root)
 
 void _initializeDoorState()
 {
-    if (_closedSensor->pressed())
+    _openSensorPressed = _isOpenSensorPressed();
+    _closedSensorPressed = _isClosedSensorPressed();
+    if (_closedSensorPressed)
     {
         _doorState = DoorState_closed;
 
-        if (_openSensor->pressed())
+        if (_openSensorPressed)
         {
             //malfunction
         }
     }
-    else if (_openSensor->pressed())
+    else if (_openSensorPressed)
     {
         _doorState = DoorState_open;
     }
     else
     {
         _doorState = DoorState_opening;
-    }
+    }    
 }
 
 void _sendMqttRaw(const char *key, bool sensorClosed)
@@ -99,6 +96,39 @@ void _sendMqttRaw(const char *key, bool sensorClosed)
     }
 }
 
+void _sendNotification(bool clear)
+{
+    //Prevent duplicates
+    if ((!_notificationSent && clear) || (_notificationSent && !clear))    return;
+    
+    String topic = getSetting("mqttTopic", MQTT_TOPIC);            
+    if (topic.length() > 0)
+    {                
+        if (topic.endsWith("/")) topic.remove(topic.length() - 1);
+        topic.concat("/notify");
+        mqttSendRaw(topic.c_str(), clear ? "": "Performing scheduled door closing");
+    }
+}
+
+bool _isOpenSensorPressed(){
+    bool pressed = _openSensor->pressed();
+
+#if DOOR_OPEN_SENSOR_TYPE == DOOR_SENSOR_NORMALLY_CLOSED
+    pressed = !pressed;
+#endif
+    return pressed;
+}
+
+bool _isClosedSensorPressed(){
+    bool pressed = _closedSensor->pressed();
+
+#if DOOR_CLOSED_SENSOR_TYPE == DOOR_SENSOR_NORMALLY_CLOSED
+    pressed = !pressed;
+#endif
+
+    return pressed;
+}
+
 //The event can only be EVENT_CHANGED
 bool _openSensorEvent()
 {
@@ -106,19 +136,14 @@ bool _openSensorEvent()
     {
         return false;
     }
-
-    _lastDoorState = _doorState;
-    bool sensorClosed = _openSensor->pressed();
-
-#if DOOR_OPEN_SENSOR_TYPE == DOOR_SENSOR_NORMALLY_CLOSED
-    sensorClosed = !sensorClosed;
-#endif
+    
+    _openSensorPressed = _isOpenSensorPressed();
 
     //if sensor is closed, then door is completely open otherwise door is closing
-    _doorState = sensorClosed ? DoorState_open : DoorState_closing;
-    _doorStateChangedAt = now();
-    DEBUG_MSG_P(PSTR("[DOOR] Open sensor, %s, doorState=%u\n"), sensorClosed ? "closed" : "open", _doorState);
-    _sendMqttRaw("doorOpenSensor", sensorClosed);
+    _doorState = _openSensorPressed ? DoorState_open : DoorState_closing;
+    _doorStateChangedAt = now();    
+    DEBUG_MSG_P(PSTR("[DOOR] Open sensor, %s, doorState=%u\n"), _openSensorPressed ? "closed" : "open", _doorState);
+    _sendMqttRaw("doorOpenSensor", _openSensorPressed);
     return true;
 }
 
@@ -128,19 +153,14 @@ bool _closedSensorEvent()
     {
         return false;
     }
-
-    _lastDoorState = _doorState;
-    bool sensorClosed = _closedSensor->pressed();
-
-#if DOOR_CLOSED_SENSOR_TYPE == DOOR_SENSOR_NORMALLY_CLOSED
-    sensorClosed = !sensorClosed;
-#endif
+    
+    _closedSensorPressed = _isClosedSensorPressed();
 
     //if sensor is closed, then door is completely closed otherwise opening
-    _doorState = sensorClosed ? DoorState_closed : DoorState_opening;
+    _doorState = _closedSensorPressed ? DoorState_closed : DoorState_opening;
     _doorStateChangedAt = now();
-    DEBUG_MSG_P(PSTR("[DOOR] Closed sensor, %s, doorState=%u\n"), sensorClosed ? "closed" : "open", _doorState);
-    _sendMqttRaw("doorClosedSensor", sensorClosed); 
+    DEBUG_MSG_P(PSTR("[DOOR] Closed sensor, %s, doorState=%u\n"), _closedSensorPressed ? "closed" : "open", _doorState);
+    _sendMqttRaw("doorClosedSensor", _closedSensorPressed); 
     return true;
 }
 
@@ -186,15 +206,7 @@ void _checkSchedule()
         if (timeLeft == 0)
         {
             DEBUG_MSG_P(PSTR("[DOOR] Automatically closing the door\n"));
-            
-            String topic = getSetting("mqttTopic", MQTT_TOPIC);            
-            if (topic.length() > 0)
-            {                
-                if (topic.endsWith("/")) topic.remove(topic.length() - 1);
-                topic.concat("/notify");
-                mqttSendRaw(topic.c_str(), "Automatically closing the door");
-            }
-
+            _sendNotification(false);
             relayStatus(0, true);
             //_pulseRelay();
         }
@@ -227,6 +239,13 @@ void _doorMQTTCallback(unsigned int type, const char *topic, const char *payload
     {
         DEBUG_MSG_P(PSTR("[DOOR] MQTT payload=%s\n"), payload);
     }
+}
+
+//Called from heartbeat
+void doorMQTT() {
+    _sendMqttRaw("doorOpenSensor", _openSensorPressed);
+    _sendMqttRaw("doorClosedSensor", _closedSensorPressed);
+    _sendNotification(true);    //Clear previous notification message
 }
 
 void doorSetup()

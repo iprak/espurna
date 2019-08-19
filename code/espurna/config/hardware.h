@@ -4106,8 +4106,6 @@
     // 1 (TX), 3 (RX) can be used if DEBUG_SERIAL_SUPPORT = 0
     
     #define RELAY1_PIN                  5
-    //#define RELAY1_PIN                  16
-    //#define RELAY1_TYPE                 RELAY_TYPE_INVERSE	
 	#define LED1_PIN                    2 //built-in
 	#define LED1_PIN_INVERSE            1
 

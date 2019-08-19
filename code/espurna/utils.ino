@@ -142,7 +142,8 @@ namespace Heartbeat {
         Interval = 1 << 17,
         Description = 1 << 18,
         Range = 1 << 19,
-        Remote_temp = 1 << 20
+        Remote_temp = 1 << 20,
+        Door = 1 << 21
     };
 
     constexpr uint32_t defaultValue() {
@@ -165,7 +166,8 @@ namespace Heartbeat {
             (Loadavg * (HEARTBEAT_REPORT_LOADAVG)) | \
             (Interval * (HEARTBEAT_REPORT_INTERVAL)) | \
             (Range * (HEARTBEAT_REPORT_RANGE)) | \
-            (Remote_temp * (HEARTBEAT_REPORT_REMOTE_TEMP));
+            (Remote_temp * (HEARTBEAT_REPORT_REMOTE_TEMP)) | \
+            (Door * (HEARTBEAT_DOOR_STATUS));
     }
 
     uint32_t currentValue() {
@@ -287,6 +289,12 @@ void heartbeat() {
                     char remote_temp[16];
                     dtostrf(_remote_temp.temp, 1, 1, remote_temp);
                     mqttSend(MQTT_TOPIC_REMOTE_TEMP, remote_temp);
+                }
+            #endif
+
+            #if DOOR_SUPPORT
+                if (hb_cfg & Heartbeat::Door) {
+                    doorMQTT();
                 }
             #endif
 

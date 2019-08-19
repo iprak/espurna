@@ -1894,7 +1894,7 @@
         <div id="doorConfigTemplate" class="template">
             <legend>Status</legend>
             <div class="pure-g pure-u-1">
-                Door is currently <strong><span class="doorState">closed</span></strong>.&nbsp;<span class="doorLast"></span>
+                Door is currently <strong class="doorState">closed</strong>.&nbsp;<span class="doorLast"></span>
             </div>
 
             <legend>MQTT</legend>
@@ -1907,14 +1907,20 @@
                 </div>
             </div>
 
-            <legend>Open sensor (<span class="openPin">#</span>)&nbsp;/&nbsp;Closed sensor (<span class="closedPin">#</span>)</legend>
+            <legend>Door Sensors</legend>            
             <div class="pure-g">
+                <div class="pure-u-1">
+                    Open sensor on <span class="openPin">#</span>. Open sensor is currently <strong class="opensensor">-</strong>.
+                </div>
                 <label class="pure-u-1 pure-u-lg-1-4">Open sensor MQTT topic</label>
-                <input class="pure-u-1 pure-u-lg-3-4" name="doorOpenSensor" type="text" tabindex="0" data="0" />               
+                <input class="pure-u-1 pure-u-lg-3-4" name="doorOpenSensor" type="text" tabindex="0" data="0" />
             </div>
             <div class="pure-g">
+                <div class="pure-u-1">
+                    Closed sensor on <span class="closedPin">#</span>. Closed sensor is currently <strong class="closedsensor">-</strong>.
+                </div>
                 <label class="pure-u-1 pure-u-lg-1-4">Closed sensor MQTT topic</label>
-                <input class="pure-u-1 pure-u-lg-3-4" name="doorClosedSensor" type="text" tabindex="0" data="0" />
+                <input class="pure-u-1 pure-u-lg-3-4" name="doorClosedSensor" type="text" tabindex="0" data="0" />                
             </div>
             <div class="pure-g">
                 <label class="pure-u-1 pure-u-lg-1-4">Close the door at</label>

@@ -299,6 +299,10 @@
 #define HEARTBEAT_REPORT_REMOTE_TEMP 0
 #endif
 
+#ifndef HEARTBEAT_DOOR_STATUS
+#define HEARTBEAT_DOOR_STATUS         1
+#endif
+
 //------------------------------------------------------------------------------
 // Load average
 //------------------------------------------------------------------------------
