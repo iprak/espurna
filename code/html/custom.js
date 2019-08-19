@@ -1064,13 +1064,14 @@ function updateDoorStatus(data){
     var lastTSText = "";
     var lastTS = data.last;
 
-    if (lastTS && (data.lastState === 3 || data.lastState === 4)){
-        var date = new Date(lastTS * 1000);
-        var action = data.lastState === 3? "opened":"closed";
-        lastTSText = "Door last " + action + " at " + date.toISOString().substring(0, 19).replace("T", " ") + ".";
+    if (lastTS){
+        var date = new Date(lastTS * 1000);        
+        lastTSText = "Door last operated at " + date.toISOString().substring(0, 19).replace("T", " ") + ".";
     }
     $(".doorState", target).html(formatDoorState(data.state));
     $(".doorLast", target).html(lastTSText);
+    $(".opensensor", target).html(data.openSensorP ? "closed" : "open");
+    $(".closedsensor", target).html(data.closedSensorP ? "closed" : "open");
 }
 
 // -----------------------------------------------------------------------------
