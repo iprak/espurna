@@ -1078,8 +1078,6 @@ function initDoorConfig(data) {
     var target = getDoorClone();
     $(".openPin", target).html("GPIO" + data.openPin);
     $(".closedPin", target).html("GPIO" + data.closedPin);
-    $("input[name='doorOpenSensor']", target).val(data.doorOpenSensor);
-    $("input[name='doorClosedSensor']", target).val(data.doorClosedSensor);
     $("input[name='doorSchHour']", target).val(data.doorSchHour);
     $("input[name='doorSchMin']", target).val(data.doorSchMin);
 }
@@ -1094,8 +1092,8 @@ function updateDoorStatus(data){
     }
     $(".doorState", target).html(formatDoorState(data.state));
     $(".doorLast", target).html(lastTSText);
-    $(".opensensor", target).html(data.openSensorP ? "closed" : "open");
-    $(".closedsensor", target).html(data.closedSensorP ? "closed" : "open");
+    $(".opensensorP", target).html(data.openSensorP ? "closed" : "open");
+    $(".closedsensorP", target).html(data.closedSensorP ? "closed" : "open");
 }
 
 // -----------------------------------------------------------------------------
