@@ -4094,7 +4094,7 @@
 	#define DOMOTICZ_SUPPORT            0
 	#define SCHEDULER_SUPPORT           0
 	#define THINGSPEAK_SUPPORT          0
-    #define API_SUPPORT                 0
+    #define API_SUPPORT                 1
     #define HOMEASSISTANT_SUPPORT       0
 
 #elif defined(ESP12_GARAGE_DOOR)
@@ -4129,7 +4129,7 @@
 	#define DOMOTICZ_SUPPORT            0
 	#define SCHEDULER_SUPPORT           0
 	#define THINGSPEAK_SUPPORT          0
-    #define API_SUPPORT                 0
+    #define API_SUPPORT                 1
     #define HOMEASSISTANT_SUPPORT       0
 
     //#define DEBUG_SERIAL_SUPPORT        0
