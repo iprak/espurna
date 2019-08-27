@@ -932,6 +932,7 @@
 #define MQTT_TOPIC_IRIN             "irin"
 #define MQTT_TOPIC_IROUT            "irout"
 #define MQTT_TOPIC_OTA              "ota"
+#define MQTT_TOPIC_DOOR             "door"
 
 // Light module
 #define MQTT_TOPIC_CHANNEL          "channel"
