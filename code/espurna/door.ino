@@ -63,7 +63,7 @@ void _sendDoorStatusJSON(JsonObject &root)
 
 void _doorSensorWebSocketOnStart(JsonObject &root)
 {
-    root["doorVisible"] = 1;
+    root["doorVisible"] = 1;    //This is a special key
     JsonObject &config = root.createNestedObject("doorConfig");
     config["openPin"] = DOOR_OPEN_SENSOR_PIN;
     config["closedPin"] = DOOR_CLOSED_SENSOR_PIN;
@@ -114,19 +114,23 @@ void _sendStatusMqtt(const char *msg) {
     mqttSend("door", _formattedDoorState());
     mqttSend("opensensor", _openSensorPressed ? "closed" : "open");
     mqttSend("closedsensor", _closedSensorPressed ? "closed" : "open");
-    mqttSend("notify", msg);
+    _sendNotification(msg);
 }
 
 void _clearNotification()
 {    
-    //Prevent duplicates
+    //Prevent empty notify messages
     if (!_notificationSent) return;
     mqttSend("notify", "");
 }
 
 void _sendNotification(const char *msg)
-{    
-    mqttSend("notify", msg);
+{
+    //Append time to force messages    
+    time_t t = now();
+    char buffer[strlen(msg) + 14];
+    snprintf_P(buffer, sizeof(buffer), PSTR("%s (%d:%d:%d)"), msg, hour(t), minute(t), second(t));
+    mqttSend("notify", buffer);
     _notificationSent = true;
 }
 
@@ -258,7 +262,7 @@ void _verifyOpen(){
 }
 
 void _open(){
-    DEBUG_MSG_P(PSTR("[DOOR] _open\n"));
+    //DEBUG_MSG_P(PSTR("[DOOR] _open\n"));
     _doorOperateTicker.detach();
 
     //check if opened/closed too quickly.
@@ -302,7 +306,7 @@ void _verifyClose(){
 }
 
 void _close(bool fromSchedule){
-    DEBUG_MSG_P(PSTR("[DOOR] _close %s\n"), fromSchedule? "fromSchedule" : "");
+    //DEBUG_MSG_P(PSTR("[DOOR] _close %s\n"), fromSchedule? "fromSchedule" : "");
     _doorOperateTicker.detach();
 
     if (_doorState == DoorState_closed){
@@ -313,7 +317,7 @@ void _close(bool fromSchedule){
     }  
 	else if (_doorState == DoorState_opening) {
         if (_attemptedStop){
-            _sendStatusMqtt("Door sensor malfunctioning, closed sensor fired too fast.");
+            _sendStatusMqtt("Door sensor malfunctioning, closed sensor fired too fast");
         }
         else {
             _updateDoorState(DoorState_stopped);    //Update and send web notification
@@ -339,10 +343,11 @@ void _close(bool fromSchedule){
 void doorSetupAPI() {
     apiRegister(MQTT_TOPIC_DOOR,
         [](char * buffer, size_t len) {
-            snprintf_P(buffer, len, PSTR("%d/%d/%d/%s"), _doorState, _openSensorPressed ? 1 : 0, _closedSensorPressed ? 1 : 0, _formattedDoorState());
+            //Send critical details through API since the bridge may prevent message from being sent if the value did not change
+            snprintf_P(buffer, len, PSTR("%d/%d/%d"), _doorState, _openSensorPressed ? 1 : 0, _closedSensorPressed ? 1 : 0);
         },
         [](const char * payload) {
-            DEBUG_MSG_P(PSTR("[DOOR] Received set command\n"));
+            //DEBUG_MSG_P(PSTR("[DOOR] Received set command\n"));
             if (strlen(payload) > 0) {
                 if (payload[0] == '1') {
                     _open();

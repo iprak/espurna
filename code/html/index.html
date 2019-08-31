@@ -969,7 +969,7 @@
 
                                 <div class="pure-g">
                                     <label class="pure-u-1 pure-u-lg-1-4">MQTT Root Topic</label>
-                                    <div class="pure-u-1 pure-u-lg-3-4">This setting has been moved to the DOOR section.</div>
+                                    <input class="pure-u-1 pure-u-lg-3-4" name="mqttTopic" type="text" tabindex="31" />
                                     <div class="pure-u-0 pure-u-lg-1-4"></div>
                                     <div class="pure-u-1 pure-u-lg-3-4 hint">
                                         This is the root topic for this device. The {hostname} and {mac} placeholders will be replaced by the device hostname and MAC address.<br />
@@ -1928,7 +1928,6 @@
         </div>
 
         <div id="doorConfigTemplate" class="template">
-            <legend>Status</legend>
             <div class="pure-g">
                 <div class="pure-u-1">
                     Door is currently <strong class="doorState">closed</strong>.&nbsp;<span class="doorLast"></span>
@@ -1950,15 +1949,13 @@
                     <input class="pure-u-2-3" name="doorSchMin" type="number" min="0" step="1" max="59" value="0" />
                     <div class="pure-u-1-4 hint center">&nbsp;m</div>
                 </div>
-            </div>     
-
+            </div>
             <legend>MQTT</legend>
             <div class="pure-g">
-                <label class="pure-u-1 pure-u-lg-1-4">MQTT Root Topic</label>
-                <input class="pure-u-1 pure-u-lg-3-4" name="mqttTopic" type="text" />
-                <div class="pure-u-0 pure-u-lg-1-4"></div>
-                <div class="pure-u-1 pure-u-lg-3-4 hint">
-                Notifications will be published to {rootTopic}/notify.
+                <div class="pure-u-1 hint">
+                Notifications will be published to {rootTopic}/notify.<br/>
+                Door state will be published to {rootTopic}/door.<br/>
+                Sensor states will be published to {rootTopic}/opensensor, {rootTopic}/closedsensor.
                 </div>
             </div> 
         </div>
