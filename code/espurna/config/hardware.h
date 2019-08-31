@@ -4061,7 +4061,7 @@
 
 #elif defined(NODEMCU_GARAGE_DOOR)
     #define MANUFACTURER                "NODEMCU"
-	#define DEVICE                      "GARAGE_DOOR"
+	#define DEVICE                      "GARAGE_DOOR_V2"
 	
     //NodeMCU has 2 LED - 2 (D4), 16 (D0)
     //Relay is inversed using GPIO0 (D3) activates it on startup
@@ -4084,7 +4084,7 @@
     #define DALLAS_PIN                 	5  //D1
 
     //RC Switch
-    #define RFB_TX_PIN                  4  //D2
+    //#define RFB_TX_PIN                  4  //D2    
     
     #define RELAY_MQTT_ON               "on"
     #define RELAY_MQTT_OFF              "off"
@@ -4096,6 +4096,17 @@
 	#define THINGSPEAK_SUPPORT          0
     #define API_SUPPORT                 1
     #define HOMEASSISTANT_SUPPORT       0
+
+    #define HEARTBEAT_REPORT_HOSTNAME       0
+    #define HEARTBEAT_REPORT_VERSION        0
+    #define HEARTBEAT_REPORT_MAC            0
+    #define HEARTBEAT_REPORT_RELAY          0
+    #define HEARTBEAT_REPORT_APP            0
+    #define HEARTBEAT_REPORT_BOARD          0
+    #define HEARTBEAT_REPORT_RSSI           0
+    #define HEARTBEAT_REPORT_LOADAVG        0
+    #define HEARTBEAT_REPORT_SSID           0
+    #define HEARTBEAT_DOOR_STATUS           0
 
 #elif defined(ESP12_GARAGE_DOOR)
     #define MANUFACTURER                "ESP12"
@@ -4120,6 +4131,14 @@
     #define DHT_SUPPORT             	1
     #define DHT_PIN                 	14
     #define DHT_TYPE                    DHT_CHIP_DHT11
+
+    //Temperature
+     #define NTC_SUPPORT        0
+     #define SENSOR_SUPPORT     1
+     #define NTC_BETA           4400    
+     #define NTC_R_UP           10000   
+     #define NTC_R_DOWN         0       
+     #define NTC_R0             100000 
     
     #define RELAY_MQTT_ON               "on"
     #define RELAY_MQTT_OFF              "off"
@@ -4133,6 +4152,17 @@
     #define HOMEASSISTANT_SUPPORT       0
 
     //#define DEBUG_SERIAL_SUPPORT        0
+
+    #define HEARTBEAT_REPORT_HOSTNAME       0
+    #define HEARTBEAT_REPORT_VERSION        0
+    #define HEARTBEAT_REPORT_MAC            0
+    #define HEARTBEAT_REPORT_RELAY          0
+    #define HEARTBEAT_REPORT_APP            0
+    #define HEARTBEAT_REPORT_BOARD          0
+    #define HEARTBEAT_REPORT_RSSI           0
+    #define HEARTBEAT_REPORT_LOADAVG        0
+    #define HEARTBEAT_REPORT_SSID           0
+    #define HEARTBEAT_DOOR_STATUS           0
     
 #else
 
