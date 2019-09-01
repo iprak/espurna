@@ -1934,11 +1934,18 @@
                 <div class="pure-u-1">
                     Door is currently <strong class="doorState">closed</strong>.&nbsp;<span class="doorLast"></span>
                 </div>
+                <br/>
                 <div class="pure-u-1">
-                    Open sensor on <span class="openPin">#</span>. Open sensor is currently <span class="opensensorP">-</span>.
+                    Open sensor on <span class="openPin">#</span>, open sensor is currently <span class="opensensorP">-</span>.
+                    Closed sensor on <span class="closedPin">#</span>, closed sensor is currently <span class="closedsensorP">-</span>.
                 </div>
-                <div class="pure-u-1">
-                    Closed sensor on <span class="closedPin">#</span>. Closed sensor is currently <span class="closedsensorP">-</span>.
+            </div>
+            <br/>
+            <div class="pure-g">
+                <label class="pure-u-1 pure-u-lg-1-4">Check door operations after (default=20)</label>
+                <div class="pure-u-1-4 pure-u-lg-1-4">
+                    <input class="pure-u-2-3" name="doorDelayCheck" type="number" min="20" step="1" max="60" value="0" />
+                    <div class="pure-u-1-4 hint center">&nbsp;seconds</div>
                 </div>
             </div>
             <div class="pure-g">
@@ -1952,12 +1959,17 @@
                     <div class="pure-u-1-4 hint center">&nbsp;m</div>
                 </div>
             </div>
-            <legend>MQTT</legend>
+            <legend>Setup</legend>
             <div class="pure-g">
-                <div class="pure-u-1 hint">
-                Notifications will be published to {rootTopic}/notify.<br/>
-                Door state will be published to {rootTopic}/door.<br/>
-                Sensor states will be published to {rootTopic}/opensensor, {rootTopic}/closedsensor.
+                <div class="pure-u-1">
+                Door state will be published to {rootTopic}/door, sensor states will be published to {rootTopic}/[opensensor, closedsensor] and 
+                notifications will be published to {rootTopic}/notify. 
+                <br/>
+                <ol>
+                    <li>MQTT: Configure the broker, make sure that the Root Topic starts with "smartthings/".</li>                    
+                    <li>ADMIN: Enable HTTP API.</li>
+                    <li>DOOR: Configure optional options.</li>
+                </ol>
                 </div>
             </div> 
         </div>

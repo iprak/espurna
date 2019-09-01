@@ -1080,6 +1080,7 @@ function initDoorConfig(data) {
     $(".closedPin", target).html("GPIO" + data.closedPin);
     $("input[name='doorSchHour']", target).val(data.doorSchHour);
     $("input[name='doorSchMin']", target).val(data.doorSchMin);
+    $("input[name='doorDelayCheck']", target).val(data.doorDelayCheck);
 }
 function updateDoorStatus(data){
     var target = getDoorClone();
