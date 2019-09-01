@@ -235,6 +235,18 @@
 #define DOOR_CLOSED_SENSOR_PULLUP       BUTTON_SET_PULLUP | BUTTON_DEFAULT_HIGH
 #endif
 
+#ifndef DOOR_RELAY_PULSE_DELAY
+#define DOOR_RELAY_PULSE_DELAY          750
+#endif
+
+#ifndef DOOR_BUZZER_PULSE_DURATION
+#define DOOR_BUZZER_PULSE_DURATION      750
+#endif
+
+#ifndef DOOR_BUZZER_PULSE_CYCLES
+#define DOOR_BUZZER_PULSE_CYCLES        10
+#endif
+
 // -----------------------------------------------------------------------------
 // Encoders
 // -----------------------------------------------------------------------------
