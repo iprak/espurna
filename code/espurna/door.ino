@@ -16,8 +16,7 @@ Copyright (C) 2019 Indu Prakash
 #include <Ticker.h>
 
 //https://docs.smartthings.com/en/latest/capabilities-reference.html#door-control
-enum DoorState : uint32_t
-{
+enum DoorState : uint32_t {
     DoorState_unknown = 0,
     DoorState_open = 1,
     DoorState_closed = 2,
@@ -28,14 +27,14 @@ enum DoorState : uint32_t
 
 DebounceEvent *_openSensor, *_closedSensor;
 Ticker _buzzerTicker, _doorOperateTicker, _relayTicker, _verifyTicker;
-int _buzzerTickerCount;
+int _buzzerTickerCount, _doorSchHour, _doorSchMin, _doorDelayCheck = 20;
 unsigned int _doorState;
-time_t _doorStateChangedAt, _doorOpenedAt, _doorClosedAt;
+time_t _doorStateChangedAt;
 bool _notificationSent, _openSensorPressed, _closedSensorPressed, _attemptedStop;
 
-const char* _formattedDoorState() {
-   switch (_doorState)
-    {        
+const char *_formattedDoorState() {
+    switch (_doorState)
+    {
         case DoorState_open: return "open";
         case DoorState_closed: return "closed";
         case DoorState_opening: return "opening";
@@ -47,13 +46,11 @@ const char* _formattedDoorState() {
 
 #if WEB_SUPPORT
 
-bool _doorSensorWebSocketOnReceive(const char *key, JsonVariant &value)
-{
+bool _doorWebSocketOnReceive(const char *key, JsonVariant &value) {
     return (strncmp(key, "door", 4) == 0);
 }
 
-void _sendDoorStatusJSON(JsonObject &root)
-{
+void _sendDoorStatusJSON(JsonObject &root) {
     JsonObject &status = root.createNestedObject("doorStatus");
     status["state"] = (uint32_t)_doorState;
     status["last"] = _doorStateChangedAt;
@@ -61,23 +58,22 @@ void _sendDoorStatusJSON(JsonObject &root)
     status["openSensorP"] = _openSensorPressed;
 }
 
-void _doorSensorWebSocketOnStart(JsonObject &root)
-{
-    root["doorVisible"] = 1;    //This is a special key
+void _doorWebSocketOnStart(JsonObject &root) {
+    root["doorVisible"] = 1; //This is a special key
     JsonObject &config = root.createNestedObject("doorConfig");
     config["openPin"] = DOOR_OPEN_SENSOR_PIN;
     config["closedPin"] = DOOR_CLOSED_SENSOR_PIN;
     config["doorSchHour"] = getSetting("doorSchHour");
     config["doorSchMin"] = getSetting("doorSchMin");
+    config["doorDelayCheck"] = getSetting("doorDelayCheck");
 
     _sendDoorStatusJSON(root);
 }
 #endif
 
-void _initializeDoorState()
-{
-    DEBUG_MSG_P(PSTR("[DOOR] _initializeDoorState"));
-    
+void _initializeDoorState() {
+    DEBUG_MSG_P(PSTR("[DOOR] _initializeDoorState\n"));
+
     _openSensorPressed = _isOpenSensorPressed();
     _closedSensorPressed = _isClosedSensorPressed();
     if (_closedSensorPressed)
@@ -102,7 +98,20 @@ void _initializeDoorState()
     _attemptedStop = false;
 }
 
-void _updateDoorState(uint32_t state){
+void _doorConfigure() {
+    _doorDelayCheck = getSetting("doorDelayCheck", 20).toInt();
+    if (_doorDelayCheck < 20)
+    {
+        _doorDelayCheck = 20;
+    }
+
+    _doorSchHour = getSetting("doorSchHour", 0).toInt();
+    _doorSchMin = getSetting("doorSchMin", 0).toInt();
+
+    //DEBUG_MSG_P(PSTR("[DOOR] _doorConfigure %d %d %d\n"), _doorDelayCheck,_doorSchHour,_doorSchMin);
+}
+
+void _updateDoorState(uint32_t state) {
     _doorState = state;
 
 #if WEB_SUPPORT
@@ -110,31 +119,23 @@ void _updateDoorState(uint32_t state){
 #endif
 }
 
-void _sendStatusMqtt(const char *msg) {
-    mqttSend("door", _formattedDoorState());
-    mqttSend("opensensor", _openSensorPressed ? "closed" : "open");
-    mqttSend("closedsensor", _closedSensorPressed ? "closed" : "open");
-    _sendNotification(msg);
-}
-
-void _clearNotification()
-{    
+void _clearNotification() {
     //Prevent empty notify messages
-    if (!_notificationSent) return;
+    if (!_notificationSent)
+        return;
     mqttSend("notify", "");
 }
 
-void _sendNotification(const char *msg)
-{
-    //Append time to force messages    
+void _sendNotification(const char *msg) {
+    //Append time to force messages
     time_t t = now();
-    char buffer[strlen(msg) + 14];
-    snprintf_P(buffer, sizeof(buffer), PSTR("%s (%d:%d:%d)"), msg, hour(t), minute(t), second(t));
+    char buffer[strlen(msg) + 12];
+    snprintf_P(buffer, sizeof(buffer), PSTR("%s (%02d%02d%02d)"), msg, hour(t), minute(t), second(t));
     mqttSend("notify", buffer);
     _notificationSent = true;
 }
 
-bool _isOpenSensorPressed(){
+bool _isOpenSensorPressed() {
     bool pressed = _openSensor->pressed();
 
 #if DOOR_OPEN_SENSOR_TYPE == DOOR_SENSOR_NORMALLY_CLOSED
@@ -143,7 +144,7 @@ bool _isOpenSensorPressed(){
     return pressed;
 }
 
-bool _isClosedSensorPressed(){
+bool _isClosedSensorPressed() {
     bool pressed = _closedSensor->pressed();
 
 #if DOOR_CLOSED_SENSOR_TYPE == DOOR_SENSOR_NORMALLY_CLOSED
@@ -154,73 +155,77 @@ bool _isClosedSensorPressed(){
 }
 
 //The event can only be EVENT_CHANGED
-bool _openSensorEvent()
-{
+bool _openSensorEvent() {
     if (!_openSensor->loop())
     {
         return false;
     }
-    
+
     _openSensorPressed = _isOpenSensorPressed();
 
     //if sensor is closed, then door is completely open otherwise door is closing
     _doorState = _openSensorPressed ? DoorState_open : DoorState_closing;
-    if (_doorState == DoorState_open) { _attemptedStop = false; }
+    if (_doorState == DoorState_open)
+    {
+        _attemptedStop = false;
+    }
     _doorStateChangedAt = now();
 
     DEBUG_MSG_P(PSTR("[DOOR] Open sensor, %s, doorState=%u %s\n"), _openSensorPressed ? "closed" : "open", _doorState, _formattedDoorState());
-    _sendStatusMqtt("");
+    doorMQTT();
     return true;
 }
 
-bool _closedSensorEvent()
-{
+bool _closedSensorEvent() {
     if (!_closedSensor->loop())
     {
         return false;
     }
-    
+
     _closedSensorPressed = _isClosedSensorPressed();
 
     //if sensor is closed, then door is completely closed otherwise opening
     _doorState = _closedSensorPressed ? DoorState_closed : DoorState_opening;
-    if (_doorState == DoorState_closed) { _attemptedStop = false; }
+    if (_doorState == DoorState_closed)
+    {
+        _attemptedStop = false;
+    }
     _doorStateChangedAt = now();
 
     DEBUG_MSG_P(PSTR("[DOOR] Closed sensor, %s, doorState=%u %s\n"), _closedSensorPressed ? "closed" : "open", _doorState, _formattedDoorState());
-    _sendStatusMqtt("");
-
+    doorMQTT();
     return true;
 }
 
-void _relayOff(){
+void _relayOff() {
     _relayTicker.detach();
     relayStatus(0, false);
 }
-void _actuate(){
+void _actuate() {
     relayStatus(0, true);
-    _relayTicker.once_ms(750, _relayOff);
+    _relayTicker.once_ms(DOOR_RELAY_PULSE_DELAY, _relayOff);
 }
 
-void _checkSchedule()
-{    
-    if (!ntpSynced()) return;   //Time not synced
-    if (_doorState != DoorState_closed) return; //Door not open
-
-    int doorSchHour = getSetting("doorSchHour", 0).toInt();
-    int doorSchMin = getSetting("doorSchMin", 0).toInt();
-    if ((doorSchHour == 0) && (doorSchMin == 0)) return; //No schedule defined
+void _checkSchedule() {
+    if (!ntpSynced())
+        return; //Time not synced
+    if (_doorState == DoorState_closed)
+        return; //Door not open
 
     // Check schedules every minute at hh:mm:00
     static unsigned long last_minute = 60;
     unsigned char current_minute = minute();
-    if (current_minute != last_minute) {
+    if (current_minute != last_minute)
+    {
         last_minute = current_minute;
+
+        if ((_doorSchHour == 0) && (_doorSchMin == 0))
+            return; //No schedule defined
 
         time_t t = now();
         unsigned char nowHour = hour(t);
         unsigned char nowMinute = minute(t);
-        int timeLeft = (doorSchHour - nowHour) * 60 + (doorSchMin - nowMinute);
+        int timeLeft = (_doorSchHour - nowHour) * 60 + (_doorSchMin - nowMinute);
         if (timeLeft == 0)
         {
             DEBUG_MSG_P(PSTR("[DOOR] Automatically closing the door\n"));
@@ -230,8 +235,7 @@ void _checkSchedule()
     }
 }
 
-void _doorSensorLoop()
-{
+void _doorSensorLoop() {
     if (_openSensorEvent() || _closedSensorEvent())
     {
 #if WEB_SUPPORT
@@ -242,138 +246,150 @@ void _doorSensorLoop()
     _checkSchedule();
 }
 
-void _doorMQTTCallback(unsigned int type, const char *topic, const char *payload)
-{    
-    if (type == MQTT_CONNECT_EVENT)
-    {
-        //mqttSubscribeRaw(t.c_str());
-    }
-    else if (type == MQTT_MESSAGE_EVENT)
-    {
-        DEBUG_MSG_P(PSTR("[DOOR] MQTT payload=%s\n"), payload);
-    }
-}
-
-void _verifyOpen(){
+void _verifyOpen() {
     DEBUG_MSG_P(PSTR("[DOOR] _verifyOpen\n"));
-    if (_doorState != DoorState_open){
-        _sendNotification("Door did not open within 20 seconds");
+    if (_doorState != DoorState_open)
+    {
+        //Door did not close within 20 seconds - 37 characters
+        char buffer[40];
+        snprintf_P(buffer, sizeof(buffer), PSTR("Door did not open within %d seconds"));
+        _sendNotification(buffer);
     }
 }
 
-void _open(){
+void _open() {
     //DEBUG_MSG_P(PSTR("[DOOR] _open\n"));
     _doorOperateTicker.detach();
 
     //check if opened/closed too quickly.
-    if (_doorState == DoorState_open){
+    if (_doorState == DoorState_open)
+    {
         _sendNotification("Door already open");
     }
-    else if (_doorState == DoorState_opening){
+    else if (_doorState == DoorState_opening)
+    {
         _sendNotification("Door already opening");
-    }   
-	else if (_doorState == DoorState_closing) {
-        if (_attemptedStop){
-            _sendStatusMqtt("Door sensor malfunctioning, closed sensor fired too fast.");
+    }
+    else if (_doorState == DoorState_closing)
+    {
+        if (_attemptedStop)
+        {
+            _sendNotification("Door sensor malfunctioning, open sensor triggered too quickly");
         }
-        else {            
-            _updateDoorState(DoorState_stopped);    //Update and send web notification
-            _sendStatusMqtt("Door was closing, first stopping");
-            _actuate(); //cancel closing
-            
+        else
+        {
+            _updateDoorState(DoorState_stopped); //Update and send web notification
+            _actuate();                          //cancel closing
+
             //if door was stopped and it went to opening again (sensor fired too fast), then when
             //_doorOperateTicker fires this function will again set door state to opening.
             _attemptedStop = true;
 
-            _doorOperateTicker.once_ms(1500, _open);
+            _doorOperateTicker.once_ms(DOOR_RELAY_PULSE_DELAY + 1000, _open);
         }
-	}
-    else {
-         _attemptedStop = false;
-		_updateDoorState(DoorState_opening);
-        _sendStatusMqtt("Opening the door");
+    }
+    else
+    {
+        _attemptedStop = false;
+        _updateDoorState(DoorState_opening);
         _actuate();
-        _doorOpenedAt = now();
-        _verifyTicker.once(20, _verifyOpen);
-	}
-}
-
-void _verifyClose(){
-    DEBUG_MSG_P(PSTR("[DOOR] _verifyClose\n"));
-    if (_doorState != DoorState_closed){
-        _sendNotification("Door did not close within 20 seconds");
+        _verifyTicker.once(_doorDelayCheck, _verifyOpen);
     }
 }
 
-void _close(bool fromSchedule){
+void _verifyClose() {
+    DEBUG_MSG_P(PSTR("[DOOR] _verifyClose\n"));
+    if (_doorState != DoorState_closed)
+    {
+        char buffer[40];
+        snprintf_P(buffer, sizeof(buffer), PSTR("Door did not close within %d seconds"), _doorDelayCheck);
+        _sendNotification(buffer);
+    }
+}
+
+void _close(bool fromSchedule) {
     //DEBUG_MSG_P(PSTR("[DOOR] _close %s\n"), fromSchedule? "fromSchedule" : "");
     _doorOperateTicker.detach();
 
-    if (_doorState == DoorState_closed){
-        if (!fromSchedule) { _sendNotification("Door already closed"); }
-    }
-    else if (_doorState == DoorState_closing){
-        if (!fromSchedule) { _sendNotification("Door already closing"); }
-    }  
-	else if (_doorState == DoorState_opening) {
-        if (_attemptedStop){
-            _sendStatusMqtt("Door sensor malfunctioning, closed sensor fired too fast");
+    if (_doorState == DoorState_closed)
+    {
+        if (!fromSchedule)
+        {
+            _sendNotification("Door already closed");
         }
-        else {
-            _updateDoorState(DoorState_stopped);    //Update and send web notification
-            _sendStatusMqtt("Door was opening, first stopping");
-            _actuate(); //cancel opening
+    }
+    else if (_doorState == DoorState_closing)
+    {
+        if (!fromSchedule)
+        {
+            _sendNotification("Door already closing");
+        }
+    }
+    else if (_doorState == DoorState_opening)
+    {
+        if (_attemptedStop)
+        {
+            _sendNotification("Door sensor malfunctioning, closed sensor triggered too quickly");
+        }
+        else
+        {
+            _updateDoorState(DoorState_stopped); //Update and send web notification
+            _actuate();                          //cancel opening
 
             //if door was stopped and it went to opening again (sensor fired too fast), then when
             //_doorOperateTicker fires this function will again set door state to opening.
             _attemptedStop = true;
 
-            _doorOperateTicker.once_ms(1500, _close, fromSchedule);
+            _doorOperateTicker.once_ms(DOOR_RELAY_PULSE_DELAY + 1000, _close, fromSchedule);
         }
-	}
-    else {
+    }
+    else
+    {
         _attemptedStop = false;
-		_updateDoorState(DoorState_closing);
-        _sendStatusMqtt("Closing the door");
+        _updateDoorState(DoorState_closing);
         _actuate();
-        _verifyTicker.once(20, _verifyClose);
-	}
+        _verifyTicker.once(_doorDelayCheck, _verifyClose);
+    }
 }
 
 void doorSetupAPI() {
     apiRegister(MQTT_TOPIC_DOOR,
-        [](char * buffer, size_t len) {
-            //Send critical details through API since the bridge may prevent message from being sent if the value did not change
-            snprintf_P(buffer, len, PSTR("%d/%d/%d"), _doorState, _openSensorPressed ? 1 : 0, _closedSensorPressed ? 1 : 0);
-        },
-        [](const char * payload) {
-            //DEBUG_MSG_P(PSTR("[DOOR] Received set command\n"));
-            if (strlen(payload) > 0) {
-                if (payload[0] == '1') {
-                    _open();
-                }
-                else if (payload[0] == '2') {
-                    _close(false);
-                }
-                else if (payload[0] == '9') {
-                    _initializeDoorState(); //reset
+                [](char *buffer, size_t len) {
+                    //Send critical details through API since the bridge may prevent message from being sent if the value did not change
+                    snprintf_P(buffer, len, PSTR("%d/%d/%d"), _doorState, _openSensorPressed ? 1 : 0, _closedSensorPressed ? 1 : 0);
+                },
+                [](const char *payload) {
+                    //DEBUG_MSG_P(PSTR("[DOOR] Received set command\n"));
+                    if (strlen(payload) > 0)
+                    {
+                        if (payload[0] == '1')
+                        {
+                            _open();
+                        }
+                        else if (payload[0] == '2')
+                        {
+                            _close(false);
+                        }
+                        else if (payload[0] == '9')
+                        {
+                            _initializeDoorState(); //reset
 
-                    #if WEB_SUPPORT
-                        wsSend(_sendDoorStatusJSON);
-                    #endif
-                }
-            }            
-        }        
-    );
+#if WEB_SUPPORT
+                            wsSend(_sendDoorStatusJSON);
+#endif
+                        }
+                    }
+                });
 }
 
 //Door heartbeat
-void doorMQTT() {    
-    _sendStatusMqtt("");
+void doorMQTT() {
+    mqttSend("door", _formattedDoorState());
+    mqttSend("opensensor", _openSensorPressed ? "closed" : "open");
+    mqttSend("closedsensor", _closedSensorPressed ? "closed" : "open");
 }
 
-void doorSetup()
-{
+void doorSetup() {
     //mode=BUTTON_SWITCH -> EVENT_CHANGED -> BUTTON_EVENT_CLICK
     //mode=BUTTON_PUSHBUTTON -> EVENT_PRESSED/EVENT_RELEASED -> BUTTON_EVENT_PRESSED/(BUTTON_EVENT_CLICK or BUTTON_EVENT_LNGCLICK or BUTTON_EVENT_LNGLNGCLICK)
 
@@ -388,28 +404,26 @@ void doorSetup()
 
 // Websocket Callbacks
 #if WEB_SUPPORT
-    wsOnSendRegister(_doorSensorWebSocketOnStart);
-    wsOnReceiveRegister(_doorSensorWebSocketOnReceive);
+    wsOnSendRegister(_doorWebSocketOnStart);
+    wsOnReceiveRegister(_doorWebSocketOnReceive);
 #endif
-    
-    doorSetupAPI();
 
-    mqttRegister(_doorMQTTCallback);
+    doorSetupAPI();
     doorMQTT();
-    
+
     DEBUG_MSG_P(PSTR("[DOOR] Ready\n"));
-    
+
     // Register loop
     espurnaRegisterLoop(_doorSensorLoop);
+    espurnaRegisterReload(_doorConfigure);
 }
 
 #if DOOR_BUZZER_PIN != GPIO_NONE
-void _buzzerOnOff()
-{
+void _buzzerOnOff() {
     _buzzerTickerCount++;
     digitalWrite(DOOR_BUZZER_PIN, (_buzzerTickerCount % 2) == 0 ? LOW : HIGH);
 
-    if (_buzzerTickerCount > 10)
+    if (_buzzerTickerCount > DOOR_BUZZER_PULSE_CYCLES)
     {
         digitalWrite(DOOR_BUZZER_PIN, LOW);
         DEBUG_MSG_P(PSTR("[DOOR] Buzzer off\n"));
@@ -419,8 +433,7 @@ void _buzzerOnOff()
 #endif
 
 // Called from relay module
-void onDoorOperated(unsigned char pin, bool status)
-{
+void onDoorOperated(unsigned char pin, bool status) {
 #if DOOR_BUZZER_PIN != GPIO_NONE
     if (status && (pin == RELAY1_PIN))
     {
@@ -428,9 +441,35 @@ void onDoorOperated(unsigned char pin, bool status)
         DEBUG_MSG_P(PSTR("[DOOR] Buzzer on\n"));
         digitalWrite(DOOR_BUZZER_PIN, HIGH);
         _buzzerTickerCount = 1;
-        _buzzerTicker.attach_ms(750, _buzzerOnOff);
+        _buzzerTicker.attach_ms(DOOR_BUZZER_PULSE_DURATION, _buzzerOnOff);
     }
 #endif
 }
+
+#if RELAY1_PIN == GPIO_NONE
+#error "No relay configured!!"
+#endif
+
+#if RELAY2_PIN != GPIO_NONE
+#error "Only first relay should be configured!!"
+#endif
+#if RELAY3_PIN != GPIO_NONE
+#error "Only first relay should be configured!!"
+#endif
+#if RELAY4_PIN != GPIO_NONE
+#error "Only first relay should be configured!!"
+#endif
+#if RELAY5_PIN != GPIO_NONE
+#error "Only first relay should be configured!!"
+#endif
+#if RELAY6_PIN != GPIO_NONE
+#error "Only first relay should be configured!!"
+#endif
+#if RELAY7_PIN != GPIO_NONE
+#error "Only first relay should be configured!!"
+#endif
+#if RELAY8_PIN != GPIO_NONE
+#error "Only first relay should be configured!!"
+#endif
 
 #endif // DOOR_SUPPORT
