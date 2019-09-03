@@ -4079,6 +4079,14 @@
     #define DOOR_CLOSED_SENSOR_TYPE     DOOR_SENSOR_NORMALLY_OPEN
     #define DOOR_BUZZER_PIN             13  //D7
 
+    //Temperature
+    #define NTC_SUPPORT        0
+    #define SENSOR_SUPPORT     1
+    #define NTC_BETA           4400    
+    #define NTC_R_UP           10000   
+    #define NTC_R_DOWN         0       
+    #define NTC_R0             100000 
+
     // DS18B20
     #define DALLAS_SUPPORT             	1
     #define DALLAS_PIN                 	5  //D1
@@ -4130,15 +4138,7 @@
 
     #define DHT_SUPPORT             	1
     #define DHT_PIN                 	14
-    #define DHT_TYPE                    DHT_CHIP_DHT11
-
-    //Temperature
-     #define NTC_SUPPORT        0
-     #define SENSOR_SUPPORT     1
-     #define NTC_BETA           4400    
-     #define NTC_R_UP           10000   
-     #define NTC_R_DOWN         0       
-     #define NTC_R0             100000 
+    #define DHT_TYPE                    DHT_CHIP_DHT11 
     
     #define RELAY_MQTT_ON               "on"
     #define RELAY_MQTT_OFF              "off"
@@ -4149,9 +4149,7 @@
 	#define SCHEDULER_SUPPORT           0
 	#define THINGSPEAK_SUPPORT          0
     #define API_SUPPORT                 1
-    #define HOMEASSISTANT_SUPPORT       0
-
-    //#define DEBUG_SERIAL_SUPPORT        0
+    #define HOMEASSISTANT_SUPPORT       0    
 
     #define HEARTBEAT_REPORT_HOSTNAME       0
     #define HEARTBEAT_REPORT_VERSION        0
@@ -4163,6 +4161,8 @@
     #define HEARTBEAT_REPORT_LOADAVG        0
     #define HEARTBEAT_REPORT_SSID           0
     #define HEARTBEAT_DOOR_STATUS           0
+
+    //#define DEBUG_SERIAL_SUPPORT        0
     
 #else
 
