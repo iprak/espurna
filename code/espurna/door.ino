@@ -30,7 +30,7 @@ Ticker _buzzerTicker, _doorOperateTicker, _relayTicker, _verifyTicker;
 int _buzzerTickerCount, _doorSchHour, _doorSchMin, _doorDelayCheck = 20;
 unsigned int _doorState;
 time_t _doorStateChangedAt;
-bool _notificationSent, _openSensorPressed, _closedSensorPressed, _attemptedStop;
+bool _notificationSent, _openSensorPressed, _closedSensorPressed, _attemptedStop, _processingCommand;
 
 const char *_formattedDoorState() {
     switch (_doorState)
@@ -96,6 +96,7 @@ void _initializeDoorState() {
     }
 
     _attemptedStop = false;
+    _processingCommand = false;
 }
 
 void _doorConfigure() {
@@ -168,8 +169,13 @@ bool _openSensorEvent() {
     if (_doorState == DoorState_open)
     {
         _attemptedStop = false;
+
+        if (!_processingCommand) {
+            _sendNotification("Door opened");
+        }
     }
     _doorStateChangedAt = now();
+    _processingCommand = false;
 
     DEBUG_MSG_P(PSTR("[DOOR] Open sensor, %s, doorState=%u %s\n"), _openSensorPressed ? "closed" : "open", _doorState, _formattedDoorState());
     doorMQTT();
@@ -189,9 +195,14 @@ bool _closedSensorEvent() {
     if (_doorState == DoorState_closed)
     {
         _attemptedStop = false;
+
+        if (!_processingCommand) {
+            _sendNotification("Door closed");
+        }
     }
     _doorStateChangedAt = now();
-
+    _processingCommand = false;
+    
     DEBUG_MSG_P(PSTR("[DOOR] Closed sensor, %s, doorState=%u %s\n"), _closedSensorPressed ? "closed" : "open", _doorState, _formattedDoorState());
     doorMQTT();
     return true;
@@ -255,9 +266,15 @@ void _verifyOpen() {
         snprintf_P(buffer, sizeof(buffer), PSTR("Door did not open within %d seconds"));
         _sendNotification(buffer);
     }
+
+    _processingCommand = false; //The command should have processed by the time verification is performed
 }
 
-void _open() {
+void _openDelayed() {
+    _open();
+}
+
+bool _open() {
     //DEBUG_MSG_P(PSTR("[DOOR] _open\n"));
     _doorOperateTicker.detach();
 
@@ -265,16 +282,19 @@ void _open() {
     if (_doorState == DoorState_open)
     {
         _sendNotification("Door already open");
+        return false;
     }
     else if (_doorState == DoorState_opening)
     {
         _sendNotification("Door already opening");
+        return false;
     }
     else if (_doorState == DoorState_closing)
     {
         if (_attemptedStop)
         {
             _sendNotification("Door sensor malfunctioning, open sensor triggered too quickly");
+            return false;
         }
         else
         {
@@ -285,7 +305,7 @@ void _open() {
             //_doorOperateTicker fires this function will again set door state to opening.
             _attemptedStop = true;
 
-            _doorOperateTicker.once_ms(DOOR_RELAY_PULSE_DELAY + 1000, _open);
+            _doorOperateTicker.once_ms(DOOR_RELAY_PULSE_DELAY + 1000, _openDelayed);
         }
     }
     else
@@ -295,6 +315,8 @@ void _open() {
         _actuate();
         _verifyTicker.once(_doorDelayCheck, _verifyOpen);
     }
+
+    return true;
 }
 
 void _verifyClose() {
@@ -305,9 +327,15 @@ void _verifyClose() {
         snprintf_P(buffer, sizeof(buffer), PSTR("Door did not close within %d seconds"), _doorDelayCheck);
         _sendNotification(buffer);
     }
+
+    _processingCommand = false; //The command should have processed by the time verification is performed
 }
 
-void _close(bool fromSchedule) {
+void _closeDelayed(bool fromSchedule) {
+    _close(fromSchedule);
+}
+
+bool _close(bool fromSchedule) {
     //DEBUG_MSG_P(PSTR("[DOOR] _close %s\n"), fromSchedule? "fromSchedule" : "");
     _doorOperateTicker.detach();
 
@@ -317,6 +345,8 @@ void _close(bool fromSchedule) {
         {
             _sendNotification("Door already closed");
         }
+
+        return false;
     }
     else if (_doorState == DoorState_closing)
     {
@@ -324,12 +354,15 @@ void _close(bool fromSchedule) {
         {
             _sendNotification("Door already closing");
         }
+
+        return false;
     }
     else if (_doorState == DoorState_opening)
     {
         if (_attemptedStop)
         {
             _sendNotification("Door sensor malfunctioning, closed sensor triggered too quickly");
+            return false;
         }
         else
         {
@@ -340,7 +373,7 @@ void _close(bool fromSchedule) {
             //_doorOperateTicker fires this function will again set door state to opening.
             _attemptedStop = true;
 
-            _doorOperateTicker.once_ms(DOOR_RELAY_PULSE_DELAY + 1000, _close, fromSchedule);
+            _doorOperateTicker.once_ms(DOOR_RELAY_PULSE_DELAY + 1000, _closeDelayed, fromSchedule);
         }
     }
     else
@@ -350,6 +383,8 @@ void _close(bool fromSchedule) {
         _actuate();
         _verifyTicker.once(_doorDelayCheck, _verifyClose);
     }
+
+    return true;
 }
 
 void doorSetupAPI() {
@@ -364,11 +399,11 @@ void doorSetupAPI() {
                     {
                         if (payload[0] == '1')
                         {
-                            _open();
+                            _processingCommand = _open();
                         }
                         else if (payload[0] == '2')
                         {
-                            _close(false);
+                            _processingCommand = _close(false);
                         }
                         else if (payload[0] == '9')
                         {

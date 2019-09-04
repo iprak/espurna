@@ -4118,7 +4118,7 @@
 
 #elif defined(ESP12_GARAGE_DOOR)
     #define MANUFACTURER                "ESP12"
-	#define DEVICE                      "GARAGE_DOOR"
+	#define DEVICE                      "GARAGE_DOOR_V2"
 	
     //0 is wired HIGH when running, 2 is wired to HIGH, 15 is wired to LOW
     //Available: 4, 5, 12, 13, 14, 16 (pull down)
