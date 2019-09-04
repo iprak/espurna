@@ -4067,7 +4067,7 @@
     //Relay is inversed using GPIO0 (D3) activates it on startup
 
     #define RELAY1_PIN                  16  //D0
-    #define RELAY1_TYPE                 RELAY_TYPE_INVERSE	
+    #define RELAY1_TYPE                 RELAY_TYPE_INVERSE
 	#define LED1_PIN                    2   //D4
 	#define LED1_PIN_INVERSE            1
 
@@ -4092,10 +4092,10 @@
     #define DALLAS_PIN                 	5  //D1
 
     //RC Switch
-    //#define RFB_TX_PIN                  4  //D2    
+    //#define RFB_TX_PIN                  4  //D2
     
     #define RELAY_MQTT_ON               "on"
-    #define RELAY_MQTT_OFF              "off"    
+    #define RELAY_MQTT_OFF              "off"
     #define ALEXA_SUPPORT               0
 	#define DOMOTICZ_SUPPORT            0
 	#define SCHEDULER_SUPPORT           0
@@ -4139,13 +4139,13 @@
     #define DHT_TYPE                    DHT_CHIP_DHT11 
     
     #define RELAY_MQTT_ON               "on"
-    #define RELAY_MQTT_OFF              "off"    
+    #define RELAY_MQTT_OFF              "off"
     #define ALEXA_SUPPORT               0
 	#define DOMOTICZ_SUPPORT            0
 	#define SCHEDULER_SUPPORT           0
 	#define THINGSPEAK_SUPPORT          0
     #define API_SUPPORT                 1
-    #define HOMEASSISTANT_SUPPORT       0    
+    #define HOMEASSISTANT_SUPPORT       0
 
     #define HEARTBEAT_REPORT_HOSTNAME       0
     #define HEARTBEAT_REPORT_VERSION        0
