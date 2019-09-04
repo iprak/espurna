@@ -46,11 +46,11 @@ const char *_formattedDoorState() {
 
 #if WEB_SUPPORT
 
-bool _doorWebSocketOnReceive(const char *key, JsonVariant &value) {
+bool _doorWebSocketOnKeyCheck(const char *key, JsonVariant &value) {
     return (strncmp(key, "door", 4) == 0);
 }
 
-void _sendDoorStatusJSON(JsonObject &root) {
+void _doorWebSocketOnData(JsonObject &root) {
     JsonObject &status = root.createNestedObject("doorStatus");
     status["state"] = (uint32_t)_doorState;
     status["last"] = _doorStateChangedAt;
@@ -58,21 +58,22 @@ void _sendDoorStatusJSON(JsonObject &root) {
     status["openSensorP"] = _openSensorPressed;
 }
 
-void _doorWebSocketOnStart(JsonObject &root) {
+void _doorWebSocketOnVisible(JsonObject &root) {
     root["doorVisible"] = 1; //This is a special key
+}
+
+void _doorWebSocketOnConnected(JsonObject &root) {
     JsonObject &config = root.createNestedObject("doorConfig");
     config["openPin"] = DOOR_OPEN_SENSOR_PIN;
     config["closedPin"] = DOOR_CLOSED_SENSOR_PIN;
     config["doorSchHour"] = getSetting("doorSchHour");
     config["doorSchMin"] = getSetting("doorSchMin");
     config["doorDelayCheck"] = getSetting("doorDelayCheck");
-
-    _sendDoorStatusJSON(root);
 }
 #endif
 
 void _initializeDoorState() {
-    DEBUG_MSG_P(PSTR("[DOOR] _initializeDoorState\n"));
+    //DEBUG_MSG_P(PSTR("[DOOR] _initializeDoorState\n"));
 
     _openSensorPressed = _isOpenSensorPressed();
     _closedSensorPressed = _isClosedSensorPressed();
@@ -114,9 +115,10 @@ void _doorConfigure() {
 
 void _updateDoorState(uint32_t state) {
     _doorState = state;
+    mqttSend("door", _formattedDoorState());
 
 #if WEB_SUPPORT
-    wsSend(_sendDoorStatusJSON);
+    wsPost(_doorWebSocketOnData);
 #endif
 }
 
@@ -250,7 +252,7 @@ void _doorSensorLoop() {
     if (_openSensorEvent() || _closedSensorEvent())
     {
 #if WEB_SUPPORT
-        wsSend(_sendDoorStatusJSON);
+        wsPost(_doorWebSocketOnData);
 #endif
     }
 
@@ -258,7 +260,7 @@ void _doorSensorLoop() {
 }
 
 void _verifyOpen() {
-    DEBUG_MSG_P(PSTR("[DOOR] _verifyOpen\n"));
+    //DEBUG_MSG_P(PSTR("[DOOR] _verifyOpen\n"));
     if (_doorState != DoorState_open)
     {
         //Door did not close within 20 seconds - 37 characters
@@ -320,7 +322,7 @@ bool _open() {
 }
 
 void _verifyClose() {
-    DEBUG_MSG_P(PSTR("[DOOR] _verifyClose\n"));
+    //DEBUG_MSG_P(PSTR("[DOOR] _verifyClose\n"));
     if (_doorState != DoorState_closed)
     {
         char buffer[40];
@@ -332,6 +334,7 @@ void _verifyClose() {
 }
 
 void _closeDelayed(bool fromSchedule) {
+    //DEBUG_MSG_P(PSTR("[DOOR] _closeDelayed %s\n"), fromSchedule? "fromSchedule" : "");
     _close(fromSchedule);
 }
 
@@ -410,7 +413,7 @@ void doorSetupAPI() {
                             _initializeDoorState(); //reset
 
 #if WEB_SUPPORT
-                            wsSend(_sendDoorStatusJSON);
+                            wsPost(_doorWebSocketOnData);
 #endif
                         }
                     }
@@ -438,9 +441,12 @@ void doorSetup() {
     _initializeDoorState();
 
 // Websocket Callbacks
-#if WEB_SUPPORT
-    wsOnSendRegister(_doorWebSocketOnStart);
-    wsOnReceiveRegister(_doorWebSocketOnReceive);
+#if WEB_SUPPORT   
+     wsRegister()
+        .onVisible(_doorWebSocketOnVisible)
+        .onConnected(_doorWebSocketOnConnected)
+        .onData(_doorWebSocketOnData)
+        .onKeyCheck(_doorWebSocketOnKeyCheck);
 #endif
 
     doorSetupAPI();
@@ -461,7 +467,7 @@ void _buzzerOnOff() {
     if (_buzzerTickerCount > DOOR_BUZZER_PULSE_CYCLES)
     {
         digitalWrite(DOOR_BUZZER_PIN, LOW);
-        DEBUG_MSG_P(PSTR("[DOOR] Buzzer off\n"));
+        //DEBUG_MSG_P(PSTR("[DOOR] Buzzer off\n"));
         _buzzerTicker.detach();
     }
 }
@@ -473,7 +479,7 @@ void onDoorOperated(unsigned char pin, bool status) {
     if (status && (pin == RELAY1_PIN))
     {
         _buzzerTicker.detach();
-        DEBUG_MSG_P(PSTR("[DOOR] Buzzer on\n"));
+        //DEBUG_MSG_P(PSTR("[DOOR] Buzzer on\n"));
         digitalWrite(DOOR_BUZZER_PIN, HIGH);
         _buzzerTickerCount = 1;
         _buzzerTicker.attach_ms(DOOR_BUZZER_PULSE_DURATION, _buzzerOnOff);

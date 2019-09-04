@@ -4095,9 +4095,7 @@
     //#define RFB_TX_PIN                  4  //D2    
     
     #define RELAY_MQTT_ON               "on"
-    #define RELAY_MQTT_OFF              "off"
-    #define HOMEASSISTANT_PAYLOAD_ON    "on"
-    #define HOMEASSISTANT_PAYLOAD_OFF   "off"
+    #define RELAY_MQTT_OFF              "off"    
     #define ALEXA_SUPPORT               0
 	#define DOMOTICZ_SUPPORT            0
 	#define SCHEDULER_SUPPORT           0
@@ -4141,9 +4139,7 @@
     #define DHT_TYPE                    DHT_CHIP_DHT11 
     
     #define RELAY_MQTT_ON               "on"
-    #define RELAY_MQTT_OFF              "off"
-    #define HOMEASSISTANT_PAYLOAD_ON    "on"
-    #define HOMEASSISTANT_PAYLOAD_OFF   "off"
+    #define RELAY_MQTT_OFF              "off"    
     #define ALEXA_SUPPORT               0
 	#define DOMOTICZ_SUPPORT            0
 	#define SCHEDULER_SUPPORT           0
