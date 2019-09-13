@@ -4061,7 +4061,7 @@
 
 #elif defined(NODEMCU_GARAGE_DOOR)
     #define MANUFACTURER                "NODEMCU"
-	#define DEVICE                      "GARAGE_DOOR_V2"
+	#define DEVICE                      "GARAGE_DOOR_V3"
 	
     //NodeMCU has 2 LED - 2 (D4), 16 (D0)
     //Relay is inversed using GPIO0 (D3) activates it on startup
@@ -4112,7 +4112,6 @@
     #define HEARTBEAT_REPORT_RSSI           0
     #define HEARTBEAT_REPORT_LOADAVG        0
     #define HEARTBEAT_REPORT_SSID           0
-    #define HEARTBEAT_DOOR_STATUS           0
 
 #elif defined(ESP12_GARAGE_DOOR)
     #define MANUFACTURER                "ESP12"
@@ -4155,8 +4154,7 @@
     #define HEARTBEAT_REPORT_BOARD          0
     #define HEARTBEAT_REPORT_RSSI           0
     #define HEARTBEAT_REPORT_LOADAVG        0
-    #define HEARTBEAT_REPORT_SSID           0
-    #define HEARTBEAT_DOOR_STATUS           0
+    #define HEARTBEAT_REPORT_SSID           0    
 
     //#define DEBUG_SERIAL_SUPPORT        0
     

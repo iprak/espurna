@@ -299,10 +299,6 @@
 #define HEARTBEAT_REPORT_REMOTE_TEMP 0
 #endif
 
-#ifndef HEARTBEAT_DOOR_STATUS
-#define HEARTBEAT_DOOR_STATUS         1
-#endif
-
 //------------------------------------------------------------------------------
 // Load average
 //------------------------------------------------------------------------------
@@ -1776,3 +1772,9 @@
 #ifndef RFM69_IS_RFM69HW
 #define RFM69_IS_RFM69HW            0
 #endif
+
+// -----------------------
+// DOOR CONTROLLER
+// -----------------------
+#define DOOR_API "door"
+#define DOOR_API_ST_HUB "doorsthub"
