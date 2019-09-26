@@ -165,7 +165,7 @@ namespace Heartbeat {
             (Loadavg * (HEARTBEAT_REPORT_LOADAVG)) | \
             (Interval * (HEARTBEAT_REPORT_INTERVAL)) | \
             (Range * (HEARTBEAT_REPORT_RANGE)) | \
-            (Remote_temp * (HEARTBEAT_REPORT_REMOTE_TEMP));            
+            (Remote_temp * (HEARTBEAT_REPORT_REMOTE_TEMP));
     }
 
     uint32_t currentValue() {
@@ -289,6 +289,7 @@ void heartbeat() {
                     mqttSend(MQTT_TOPIC_REMOTE_TEMP, remote_temp);
                 }
             #endif
+
         } else if (!serial && _heartbeat_mode == HEARTBEAT_REPEAT_STATUS) {
             mqttSendStatus();
         }

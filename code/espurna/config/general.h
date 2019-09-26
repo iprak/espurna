@@ -1777,4 +1777,3 @@
 // DOOR CONTROLLER
 // -----------------------
 #define DOOR_API "door"
-#define DOOR_API_ST_HUB "doorsthub"
