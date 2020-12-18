@@ -123,17 +123,36 @@
     #define DEVICE              "LOLIN"
 
     // Buttons
-    #define BUTTON1_PIN         0
-    #define BUTTON1_CONFIG      BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH
-    #define BUTTON1_RELAY       1
+    //#define BUTTON1_PIN         0
+    //##define BUTTON1_CONFIG      BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH
+    //#define BUTTON1_RELAY       1
 
     // Hidden button will enter AP mode if dblclick and reset the device when long-long-clicked
-    #define RELAY1_PIN          12
-    #define RELAY1_TYPE         RELAY_TYPE_NORMAL
+    //#define RELAY1_PIN          12
+    //#define RELAY1_TYPE         RELAY_TYPE_NORMAL
 
     // Light
     #define LED1_PIN            2
     #define LED1_PIN_INVERSE    1
+
+    //#define RFB_SUPPORT          1
+    //#define RFB_PROVIDER         RFB_PROVIDER_RCSWITCH
+    //#define RFB_TX_PIN           14 //D5
+
+    //#define LED_SUPPORT             0
+    #define RELAY_SUPPORT           0
+    #define ALEXA_SUPPORT           0
+    #define API_SUPPORT             0
+    #define BROKER_SUPPORT          0
+    #define DOMOTICZ_SUPPORT        0
+    #define HOMEASSISTANT_SUPPORT   0
+    #define I2C_SUPPORT             0
+    #define MQTT_SUPPORT            1
+    #define NTP_SUPPORT             0
+    #define SCHEDULER_SUPPORT       0
+    #define SENSOR_SUPPORT          0
+    #define THINGSPEAK_SUPPORT      0
+
 
 #elif defined(NODEMCU_BASIC)
     // Info

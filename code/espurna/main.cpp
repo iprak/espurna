@@ -62,6 +62,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "ws.h"
 #include "mcp23s08.h"
 #include "prometheus.h"
+#include "ws2811.h"
 
 std::vector<void_callback_f> _loop_callbacks;
 std::vector<void_callback_f> _reload_callbacks;
@@ -308,6 +309,8 @@ void setup() {
     #if USE_EXTRA
         extraSetup();
     #endif
+
+    ws2811Setup();
 
     // Prepare configuration for version 2.0
     migrate();
