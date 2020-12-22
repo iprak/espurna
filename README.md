@@ -1,3 +1,14 @@
+This is a customized Espurna firmware to control RGB LEDs (like WS2811) shaped like a tree using FastLED library. 
+
+Features:
+* Patterns: blink, drop_fill, rainbow, chase, double_chase, drop, outline, tree, tree_steps
+* The app starts in auto mode cyling through blink, drop_fill, rainbow patterns every 30 second.
+* The pattern can be changed through MQTT and Terminal.
+
+<br/>
+<br/>
+
+
 # ESPurna Firmware
 
 ESPurna ("spark" in Catalan) is a custom firmware for ESP8285/ESP8266 based smart switches, lights and sensors.
