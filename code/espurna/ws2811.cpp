@@ -1,18 +1,26 @@
+/*
+
+UCS1903 based LED module
+
+Copyright (C) 2020 by Indu Prakash
+
+*/
+
 #include "FastLED.h"
 
 #include "api.h"
 #include "mqtt.h"
+#include "relay.h"
 #include "ws.h"
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
-#define MQTT_TOPIC_WS2811 "pattern"
-#define DATA_PIN D5
+#define MQTT_TOPIC_PATTERN "pattern"
 
 #define MILLI_AMPS 2000
 #define BRIGHTNESS 255
 #define DEFAULT_FRAME_WAIT 100
-#define PATTERN_DURATION 10
+#define DEFAULT_PATTERN_DURATION 30
 #define NUM_LEDS 53
 
 CRGB leds[NUM_LEDS];
@@ -27,7 +35,7 @@ const uint8_t NUM_LEDS_LEFT_EDGE = ARRAY_SIZE(left_edge_indices);
 uint8_t level_one[NUM_LEDS_LEVEL_ONE] = {21, 20, 19, 18};
 uint8_t level_two[NUM_LEDS_LEVEL_TWO] = {12, 11, 10, 9, 8, 7};
 
-// Clockwise
+// Clockwise LED positions
 uint8_t edge_indices[] = {0,  1,  2,  3, 4,  5,  6,  12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25, 26, 27, 18, 28, 29,
                           30, 31, 32, 7, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 48, 50, 51, 52};
 const uint8_t NUM_LEDS_EDGE = ARRAY_SIZE(edge_indices);
@@ -48,12 +56,15 @@ long tree_steps(bool);
 typedef long (*Pattern)(bool);
 typedef long (*SimplePatternList[])(bool);
 
+enum class PatternMode { Auto = 0, Manual = 1, Off = 2 };
+
 Pattern currentPattern;
 char currentPatternName[16]; // sufficient to fit the longest pattern name
 uint8_t currentAutoPatternIndex = 0;
-bool auto_mode;
+PatternMode pattern_mode;
 bool pattern_changed = false;
-unsigned long last_pattern_time;
+unsigned long last_pattern_time = 0;
+uint8_t pattern_duration;
 
 const SimplePatternList ALL_PATTERNS = {blink, drop_fill, rainbow, chase,     double_chase,
                                         drop,  outline,   tree,    tree_steps};
@@ -62,27 +73,45 @@ const char ALL_PATTERN_NAMES[][16] = {"blink", "drop_fill", "rainbow", "chase", 
 const SimplePatternList AUTO_PATTERNS = {blink, drop_fill, rainbow}; // The first 3 of the ALL_PATTERNS
 const uint8_t AUTO_PATTERNS_SIZE = ARRAY_SIZE(AUTO_PATTERNS);
 
-void clear() {
+/**
+ * Set all LEDs to the specified color
+ */
+void fill(CRGB color) {
     for (uint8_t i = 0; i < NUM_LEDS; i++) {
-        leds[i] = CRGB::Black;
+        leds[i] = color;
     }
 }
 
-void fillIndicesArray(uint8_t indices_array[], uint8_t length, CRGB color) {
-    for (uint8_t i = 0; i < length; i++) {
+/**
+ * Set all LEDs to Black color
+ */
+void clear() { fill(CRGB::Black); }
+
+/**
+ * Fill indices array with the specified color
+ */
+void fillIndicesArray(uint8_t indices_array[], uint8_t array_length, CRGB color) {
+    for (uint8_t i = 0; i < array_length; i++) {
         leds[indices_array[i]] = color;
     }
 }
 
+/**
+ * Returns the next color
+ */
 CRGB getNextColor() {
     static uint8_t color_index = 0;
-    static const CRGB OutlineColors[] = {CRGB::DarkRed, CRGB::Green, CRGB::Blue};
+    static const CRGB colors[] = {CRGB::DarkRed, CRGB::Green, CRGB::Blue, CRGB::DarkSeaGreen, CRGB::Yellow};
+    static const uint8_t colors_size = ARRAY_SIZE(colors);
 
-    color_index = (color_index + 1) % 3;
-    CRGB color = OutlineColors[color_index];
+    color_index = (color_index + 1) % colors_size;
+    CRGB color = colors[color_index];
     return color;
 }
 
+/**
+ * Chasing effect
+ */
 long chase(bool newStart) {
     static uint8_t chase_index = NUM_LEDS_EDGE;
     static CRGB chase_color;
@@ -109,6 +138,9 @@ long chase(bool newStart) {
     return DEFAULT_FRAME_WAIT;
 }
 
+/**
+ * Dual chasing effect
+ */
 long double_chase(bool newStart) {
     static uint8_t chase_index = NUM_LEDS_EDGE;
     uint8_t second_index;
@@ -139,6 +171,9 @@ long double_chase(bool newStart) {
     return DEFAULT_FRAME_WAIT;
 }
 
+/**
+ * LEDs dropping on the edges
+ */
 long drop(bool newStart) {
     static uint8_t drop_index = 255;
     static CRGB drop_color;
@@ -166,6 +201,9 @@ long drop(bool newStart) {
     return DEFAULT_FRAME_WAIT;
 }
 
+/**
+ * LEDs dropping on the edges and filling
+ */
 long drop_fill(bool newStart) {
     static uint8_t drop_index;
     static CRGB drop_color;
@@ -210,17 +248,17 @@ long drop_fill(bool newStart) {
     return DEFAULT_FRAME_WAIT;
 }
 
+/**
+ * Complete tree
+ */
 long tree(bool newStart) {
-    clear();
-    CRGB color = getNextColor();
-
-    for (uint8_t i = 0; i < NUM_LEDS; i++) {
-        leds[i] = color;
-    }
-
+    fill(getNextColor());
     return 0;
 }
 
+/**
+ * Blinking tree
+ */
 long blink(bool newStart) {
     static uint8_t step = 0;
 
@@ -231,23 +269,25 @@ long blink(bool newStart) {
     clear();
 
     if (step == 0) {
-        CRGB color = getNextColor();
-
-        for (uint8_t i = 0; i < NUM_LEDS; i++) {
-            leds[i] = color;
-        }
+        fill(getNextColor());
     }
 
     step = (step + 1) % 2;
     return 1000; // Blink every 1000 ms
 }
 
+/**
+ * Tree with just the outline
+ */
 long outline(bool newStart) {
     clear();
     fillIndicesArray(edge_indices, NUM_LEDS_EDGE, getNextColor());
     return 0;
 }
 
+/**
+ * Tree with steps
+ */
 long tree_steps(bool newStart) {
     static uint8_t step = 0;
     static CRGB tree_steps_color;
@@ -289,6 +329,9 @@ long tree_steps(bool newStart) {
     return 1000;
 }
 
+/**
+ * Rainbow
+ */
 long rainbow(bool newStart) {
     static uint8_t step = 0;
 
@@ -303,22 +346,57 @@ long rainbow(bool newStart) {
     return DEFAULT_FRAME_WAIT;
 }
 
-void setPatternMode(const char *pattern) { // uint8_t result
-    if (strcmp(pattern, "auto") == 0) {
-        if (!auto_mode) {
-            auto_mode = true;
+/**
+ * Sets the pattern only if it is different
+ */
+void setPatternMode(const char *pattern) {
+    // switch off if not off
+    if (strcmp(pattern, "off") == 0) {
+        if (pattern_mode != PatternMode::Off) {
+            clear();
+            FastLED.show();
+
+            pattern_mode = PatternMode::Off;
+            pattern_changed = false;
+            last_pattern_time = millis();
+
+            mqttSend(MQTT_TOPIC_PATTERN, "off");
+
+            DEBUG_MSG_P(PSTR("[WS2811] off\n"));
+        }
+    }
+
+    else if (strcmp(pattern, "auto") == 0) {
+        // SWitch to auto mode if not in auto
+        if (pattern_mode != PatternMode::Auto) {
+            pattern_mode = PatternMode::Auto;
             currentAutoPatternIndex = 0;
             currentPattern = AUTO_PATTERNS[currentAutoPatternIndex];
             pattern_changed = true;
             last_pattern_time = millis();
 
             strcpy_P(currentPatternName, ALL_PATTERN_NAMES[currentAutoPatternIndex]);
-            mqttSend(MQTT_TOPIC_WS2811, "auto");
+            mqttSend(MQTT_TOPIC_PATTERN, "auto");
+
+            DEBUG_MSG_P(PSTR("[WS2811] auto mode\n"));
+        }
+    } else if (strcmp(pattern, "on") == 0) {
+        // Switch on in auto mode if off
+        if (pattern_mode == PatternMode::Off) {
+            pattern_mode = PatternMode::Auto;
+            currentAutoPatternIndex = 0;
+            currentPattern = AUTO_PATTERNS[currentAutoPatternIndex];
+            pattern_changed = true;
+            last_pattern_time = millis();
+
+            strcpy_P(currentPatternName, ALL_PATTERN_NAMES[currentAutoPatternIndex]);
+            mqttSend(MQTT_TOPIC_PATTERN, "auto");
 
             DEBUG_MSG_P(PSTR("[WS2811] auto mode\n"));
         }
     } else {
 
+        // Switch to pattern if not already in that pattern
         bool using_defaultPattern = false;
         Pattern newPattern;
 
@@ -354,10 +432,10 @@ void setPatternMode(const char *pattern) { // uint8_t result
                 strcpy_P(currentPatternName, pattern);
             }
 
-            auto_mode = false; // manual
+            pattern_mode = PatternMode::Manual;
             pattern_changed = true;
 
-            mqttSend(MQTT_TOPIC_WS2811, currentPatternName);
+            mqttSend(MQTT_TOPIC_PATTERN, currentPatternName);
             DEBUG_MSG_P(PSTR("[WS2811] %s\n"), currentPatternName);
         }
     }
@@ -367,8 +445,15 @@ void ws2811Loop() {
     static unsigned long last_frame_time;
     static unsigned long frame_duration = 0;
 
+    // if (pattern_mode == PatternMode::Off)
+    if (!relayStatus(0))    //Strip is turned off
+    {
+        return;
+    }
+
     unsigned long current_time = millis();
 
+    // Invoke the effect method if the pattern changed or we need a new frame
     if (pattern_changed) {
         frame_duration = currentPattern(true);
         FastLED.show();
@@ -383,37 +468,43 @@ void ws2811Loop() {
     }
 
     // change patterns periodically in auto mode
-    if (auto_mode && ((current_time - last_pattern_time) > (PATTERN_DURATION * 1000))) {
+    if ((pattern_mode == PatternMode::Auto) &&
+        ((last_pattern_time == 0) || ((current_time - last_pattern_time) > (pattern_duration * 1000)))) {
         currentAutoPatternIndex = (currentAutoPatternIndex + 1) % AUTO_PATTERNS_SIZE;
         currentPattern = AUTO_PATTERNS[currentAutoPatternIndex];
         pattern_changed = true;
         last_pattern_time = current_time;
 
         strcpy_P(currentPatternName, ALL_PATTERN_NAMES[currentAutoPatternIndex]);
-        mqttSend(MQTT_TOPIC_WS2811, currentPatternName);
+        mqttSend(MQTT_TOPIC_PATTERN, currentPatternName);
 
-        DEBUG_MSG_P(PSTR("[WS2811] pattern %s\n"), currentPatternName);
+        // DEBUG_MSG_P(PSTR("[WS2811] %s\n"), currentPatternName);
     }
 }
 
 void ws2811TerminalSetup() {
-    terminalRegisterCommand(F(MQTT_TOPIC_WS2811), [](const terminal::CommandContext &ctx) {
-        // int result = ctx.argv[1].toInt();
-        setPatternMode(ctx.argv[1].c_str());
+    terminalRegisterCommand(F(MQTT_TOPIC_PATTERN), [](const terminal::CommandContext &ctx) {
+        if (ctx.argc > 1) {
+            // int result = ctx.argv[1].toInt();
+            setPatternMode(ctx.argv[1].c_str());
+        }
+        else{
+            DEBUG_MSG_P(PSTR("[WS2811] %s\n"), currentPatternName);
+        }
         terminalOK();
     });
 }
 
 void ws2811MQTTCallback(unsigned int type, const char *topic, const char *payload) {
     if (type == MQTT_CONNECT_EVENT) {
-        mqttSubscribe(MQTT_TOPIC_WS2811);
-        mqttSend(MQTT_TOPIC_WS2811, currentPatternName);
+        mqttSubscribe(MQTT_TOPIC_PATTERN);
+        mqttSend(MQTT_TOPIC_PATTERN, currentPatternName);
     }
 
     if (type == MQTT_MESSAGE_EVENT) {
         String t = mqttMagnitude((char *)topic);
 
-        if (t.equals(MQTT_TOPIC_WS2811)) {
+        if (t.equals(MQTT_TOPIC_PATTERN)) {
             // setPatternMode(atoi(payload));
             setPatternMode(payload);
         }
@@ -421,14 +512,15 @@ void ws2811MQTTCallback(unsigned int type, const char *topic, const char *payloa
 }
 
 void ws2811Setup() {
-    FastLED.addLeds<UCS1903, DATA_PIN, RGB>(leds, NUM_LEDS);
+    FastLED.addLeds<UCS1903, WS2811_DATA_PIN, RGB>(leds, NUM_LEDS);
 
     // FastLED.setDither(false);
-    FastLED.setCorrection(TypicalLEDStrip);
+    // FastLED.setCorrection(TypicalLEDStrip);
     FastLED.setBrightness(BRIGHTNESS);
     FastLED.setMaxPowerInVoltsAndMilliamps(5, MILLI_AMPS);
 
-    clear();
+    pattern_duration = DEFAULT_PATTERN_DURATION;
+    fill(CRGB::Pink);
     FastLED.show();
     setPatternMode("auto"); // Start with the first auto pattern
 
@@ -436,8 +528,3 @@ void ws2811Setup() {
     mqttRegister(ws2811MQTTCallback);
     ws2811TerminalSetup();
 }
-
-// https://github.com/FastLED/FastLED/blob/d5ddf40d3f3731adb36c122abba29cbf80654be3/src/colorpalettes.h
-// https://github.com/FastLED/FastLED/blob/dcbf39933f51a2a0e4dfa0a2b3af4f50040df5c9/examples/Fire2012WithPalette/Fire2012WithPalette.ino
-// https://github.com/FastLED/FastLED/blob/dcbf39933f51a2a0e4dfa0a2b3af4f50040df5c9/examples/DemoReel100/DemoReel100.ino
-// https://gist.github.com/headphones81/d3474359f1b3744ce203b16905f93d5f
