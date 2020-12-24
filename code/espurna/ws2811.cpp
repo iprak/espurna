@@ -540,17 +540,21 @@ void _ws2811Loop() {
 
 void _ws2811TerminalSetup() {
     terminalRegisterCommand(F(MQTT_TOPIC_PATTERN), [](const terminal::CommandContext &ctx) {
-        if (ctx.argc > 1) {
+        if (ctx.argc == 2) {
             _setPattern(ctx.argv[1].c_str());
-        }
-        terminalOK();
+            terminalOK();
+        } else {
+            terminalError(F("PATTERN name"));
+        }        
     });
 
     terminalRegisterCommand(F(MQTT_TOPIC_PATTERN_DURATION), [](const terminal::CommandContext &ctx) {
-        if (ctx.argc > 1) {
+        if (ctx.argc == 2) {
             _setPatternDuration(ctx.argv[1].toInt());
+            terminalOK();
+        } else {
+            terminalError(F("DURATION value"));
         }
-        terminalOK();
     });
 }
 
