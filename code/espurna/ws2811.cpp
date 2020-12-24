@@ -14,6 +14,9 @@ Copyright (C) 2020 by Indu Prakash
 #include "ws.h"
 #include <Ticker.h>
 
+enum class PatternMode { Auto = 0, Manual = 1 };
+enum class MqttData { Pattern = 0, Duration = 1, Both = 2 };
+
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 #define MQTT_TOPIC_PATTERN "pattern"
@@ -66,8 +69,6 @@ long _tree_steps(bool);
 typedef long (*Pattern)(bool);
 typedef long (*SimplePatternList[])(bool);
 
-enum class PatternMode { Auto = 0, Manual = 1 };
-
 Pattern current_pattern;
 PatternMode pattern_mode;
 char pattern_name[16]; // sufficient to fit the longest pattern name
@@ -79,7 +80,7 @@ unsigned long frame_duration = 0;
 
 const SimplePatternList ALL_PATTERNS = {_blink, _drop_fill,    _outline, _tree_steps, _rainbow,
                                         _chase, _double_chase, _drop,    _tree};
-const char ALL_PATTERN_NAMES[][16] = {"blink", "drop_fill",   "outline", "tree_steps", "rainbow",
+const char ALL_PATTERN_NAMES[][16] = {"blink", "drop_fill",    "outline", "tree_steps", "rainbow",
                                       "chase", "double_chase", "drop",    "tree"};
 
 // These are listed first in ALL_PATTERNS
@@ -89,8 +90,8 @@ const uint8_t AUTO_PATTERNS_SIZE = ARRAY_SIZE(AUTO_PATTERNS);
 Ticker _mqtt_ticker;
 
 /**
- * Returns the pattern function by name. The first pattern function is returned in case of mismatch.
- * @param name Pattern name
+ * Returns the pattern function by name. NULL is returned in case of mismatch.
+ * @param name Lower cased pattern name
  */
 Pattern _getPatternByName(const char *name) {
     if (strcmp(name, "blink") == 0) {
@@ -125,7 +126,8 @@ Pattern _getPatternByName(const char *name) {
 }
 
 /**
- * Set all LEDs to the specified color
+ * Set all LEDs to the specified color.
+ * @param color
  */
 void _fill(CRGB color) {
     for (uint8_t i = 0; i < NUM_LEDS; i++) {
@@ -134,12 +136,12 @@ void _fill(CRGB color) {
 }
 
 /**
- * Set all LEDs to Black color
+ * Set all LEDs to Black color.
  */
 void _clear() { _fill(CRGB::Black); }
 
 /**
- * _fill indices array with the specified color
+ * Fill indices array with the specified color.
  */
 void _fillIndicesArray(uint8_t indices_array[], uint8_t array_length, CRGB color) {
     for (uint8_t i = 0; i < array_length; i++) {
@@ -148,7 +150,7 @@ void _fillIndicesArray(uint8_t indices_array[], uint8_t array_length, CRGB color
 }
 
 /**
- * Returns the next color
+ * Returns the next pre-selected color.
  */
 CRGB _getNextColor() {
     static uint8_t color_index = 0;
@@ -156,8 +158,7 @@ CRGB _getNextColor() {
     static const uint8_t colors_size = ARRAY_SIZE(colors);
 
     color_index = (color_index + 1) % colors_size;
-    CRGB color = colors[color_index];
-    return color;
+    return colors[color_index];
 }
 
 /**
@@ -328,7 +329,7 @@ long _blink(bool newStart) {
 }
 
 /**
- * Tree with animating outline
+ * Tree with animating outline.
  */
 long _outline(bool newStart) {
     static uint8_t offset;
@@ -340,21 +341,21 @@ long _outline(bool newStart) {
     uint8_t i;
 
     for (i = 0; i < NUM_LEDS_NON_EDGE; i++) {
-        edge_indices[non_edge_indices[i]] = CRGB::Black;
+        leds[non_edge_indices[i]] = CRGB::Black;
     }
 
     for (i = 0; i < NUM_LEDS_EDGE; i++) {
         uint8_t index = edge_indices[i];
 
         switch ((i + offset) % 3) {
-        case 0:
-            leds[index] = CRGB::Red;
-            break;
         case 1:
             leds[index] = CRGB::Green;
             break;
         case 2:
             leds[index] = CRGB::Blue;
+            break;
+        default:
+            leds[index] = CRGB::Red;
             break;
         }
     }
@@ -364,38 +365,37 @@ long _outline(bool newStart) {
 }
 
 /**
- * Tree with steps
+ * Tree with steps.
  */
 long _tree_steps(bool newStart) {
     static uint8_t step = 0;
-    static CRGB tree_steps_color;
 
     if (newStart) {
         step = 0;
     }
 
     uint8_t i;
+    CRGB color = _getNextColor();
 
     if (step == 0) {
         _clear();
-        tree_steps_color = _getNextColor();
 
         for (i = 18; i < 28; i++) {
-            leds[i] = tree_steps_color;
+            leds[i] = color;
         }
     } else if (step == 1) {
         for (i = 7; i < 18; i++) {
-            leds[i] = tree_steps_color;
+            leds[i] = color;
         }
         for (i = 28; i < 33; i++) {
-            leds[i] = tree_steps_color;
+            leds[i] = color;
         }
     } else if (step == 2) {
         for (i = 0; i < 7; i++) {
-            leds[i] = tree_steps_color;
+            leds[i] = color;
         }
         for (i = 33; i < 53; i++) {
-            leds[i] = tree_steps_color;
+            leds[i] = color;
         }
 
         for (i = 44; i < 49; i++) {
@@ -404,7 +404,7 @@ long _tree_steps(bool newStart) {
     }
 
     step = (step + 1) % 3;
-    return 1000;
+    return 750;
 }
 
 /**
@@ -424,68 +424,63 @@ long _rainbow(bool newStart) {
     return DEFAULT_FRAME_WAIT;
 }
 
-void _sendMqttUpdates() {
-    if (pattern_mode == PatternMode::Auto) {
-        mqttSend(MQTT_TOPIC_PATTERN, "auto");
-    } else {
-        mqttSend(MQTT_TOPIC_PATTERN, pattern_name);
+/**
+ * Send MQTT updates for all values.
+ * @param dataValues Data values to send
+ */
+void _sendMqttUpdates(MqttData dataValues) {
+    if ((dataValues == MqttData::Pattern) || (dataValues == MqttData::Both)) {
+        mqttSend(MQTT_TOPIC_PATTERN, pattern_mode == PatternMode::Auto ? "auto" : pattern_name);
     }
 
-    char buffer[8];
-    snprintf_P(buffer, sizeof(buffer), PSTR("%d"), pattern_duration);
-    mqttSend(MQTT_TOPIC_PATTERN_DURATION, buffer);
+    if ((dataValues == MqttData::Duration) || (dataValues == MqttData::Both)) {
+        char buffer[5];
+        snprintf_P(buffer, sizeof(buffer), PSTR("%d"), pattern_duration);
+        mqttSend(MQTT_TOPIC_PATTERN_DURATION, buffer);
+    }
 }
 
 /**
  * Set the current pattern.
  * @param name Name of the pattern
- * @param fromSetup Being called from setup, do not save to settings
  */
-void _setPattern(const char *name, bool fromSetup = false) {
+void _setPattern(const char *name) {
+    // Send MQTT update even if value changed.
+
     if (strcmp(name, "auto") == 0) {
-        if (fromSetup || (pattern_mode != PatternMode::Auto)) {
+        if (pattern_mode != PatternMode::Auto) {
             pattern_mode = PatternMode::Auto;
             current_auto_pattern_index = 0;
             current_pattern = AUTO_PATTERNS[current_auto_pattern_index];
-            pattern_changed = true;
-            last_pattern_time = millis();
-
-            if (!fromSetup) {
-                setSetting(SETTING_PATTERN, "auto");
-                saveSettings();
-            }
-
             strcpy_P(pattern_name, "auto");
-            _mqtt_ticker.once_ms(100, _sendMqttUpdates);
+            pattern_changed = true;
         }
     } else {
-
-        // Switch to pattern if not already in that pattern
         Pattern pattern = _getPatternByName(name);
 
         // Fall back to "auto" if pattern is invalid
         if (pattern == NULL) {
-            _setPattern("auto", fromSetup);
+            _setPattern("auto");
             return;
         }
 
-        DEBUG_MSG_P(PSTR("[WS2811] setting pattern %s\n"), name);
-
-        if (fromSetup || (pattern != current_pattern)) {
+        // Switch to pattern if not already in that pattern
+        if (pattern != current_pattern) {
+            pattern_mode = PatternMode::Manual;
             current_pattern = pattern;
             strcpy_P(pattern_name, name);
-
-            pattern_mode = PatternMode::Manual;
             pattern_changed = true;
-            last_pattern_time = millis();
-
-            if (!fromSetup) {
-                setSetting(SETTING_PATTERN, name);
-                saveSettings();
-            }
-
-            _mqtt_ticker.once_ms(100, _sendMqttUpdates);
         }
+    }
+
+    if (pattern_changed) {
+        last_pattern_time = millis();
+
+        setSetting(SETTING_PATTERN, name);
+        saveSettings();
+
+        _mqtt_ticker.once_ms(100, _sendMqttUpdates, MqttData::Pattern);
+        DEBUG_MSG_P(PSTR("[WS2811] pattern=%s\n"), pattern_name);
     }
 }
 
@@ -500,7 +495,8 @@ void _setPatternDuration(uint8_t value) {
         setSetting(SETTING_PATTERN_DURATION, pattern_duration);
         saveSettings();
 
-        _mqtt_ticker.once_ms(100, _sendMqttUpdates);
+        _mqtt_ticker.once_ms(100, _sendMqttUpdates, MqttData::Duration);
+        DEBUG_MSG_P(PSTR("[WS2811] duration=%d\n"), pattern_duration);
     }
 }
 
@@ -538,7 +534,7 @@ void _ws2811Loop() {
 
         char active_pattern_name[16];
         strcpy_P(active_pattern_name, ALL_PATTERN_NAMES[current_auto_pattern_index]);
-        DEBUG_MSG_P(PSTR("[WS2811] %s\n"), active_pattern_name);
+        DEBUG_MSG_P(PSTR("[WS2811] running %s\n"), active_pattern_name);
     }
 }
 
@@ -547,7 +543,6 @@ void _ws2811TerminalSetup() {
         if (ctx.argc > 1) {
             _setPattern(ctx.argv[1].c_str());
         }
-        DEBUG_MSG_P(PSTR("[WS2811] %s duration=%d\n"), pattern_name, pattern_duration);
         terminalOK();
     });
 
@@ -555,7 +550,6 @@ void _ws2811TerminalSetup() {
         if (ctx.argc > 1) {
             _setPatternDuration(ctx.argv[1].toInt());
         }
-        DEBUG_MSG_P(PSTR("[WS2811] %s duration=%d\n"), pattern_name, pattern_duration);
         terminalOK();
     });
 }
@@ -565,7 +559,7 @@ void _ws2811MQTTCallback(unsigned int type, const char *topic, const char *paylo
         mqttSubscribe(MQTT_TOPIC_PATTERN);
         mqttSubscribe(MQTT_TOPIC_PATTERN_DURATION);
 
-        _mqtt_ticker.once_ms(100, _sendMqttUpdates);
+        _mqtt_ticker.once_ms(100, _sendMqttUpdates, MqttData::Both);
     }
 
     if (type == MQTT_MESSAGE_EVENT) {
@@ -590,12 +584,10 @@ void ws2811Setup() {
     _fill(CRGB::Orange);
     FastLED.show();
 
-    pattern_duration = constrain(getSetting(SETTING_PATTERN_DURATION, DEFAULT_PATTERN_DURATION), PATTERN_DURATION_MIN,
-                                 PATTERN_DURATION_MAX);
-    DEBUG_MSG_P(PSTR("[WS2811] pattern_duration=%d\n"), pattern_duration);
-
     strcpy_P(pattern_name, getSetting(SETTING_PATTERN, "auto").c_str());
-    _setPattern(pattern_name, true);
+    _setPattern(pattern_name);
+
+    _setPatternDuration(getSetting(SETTING_PATTERN_DURATION, DEFAULT_PATTERN_DURATION));
 
     espurnaRegisterLoop(_ws2811Loop);
     mqttRegister(_ws2811MQTTCallback);
