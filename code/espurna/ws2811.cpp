@@ -17,6 +17,8 @@ Copyright (C) 2020 by Indu Prakash
 enum class PatternMode { Auto = 0, Manual = 1 };
 enum class MqttData { Pattern = 0, Duration = 1, Both = 2 };
 
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
+
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 #define MQTT_TOPIC_PATTERN "pattern"
@@ -539,21 +541,21 @@ void _ws2811Loop() {
 }
 
 void _ws2811TerminalSetup() {
-    terminalRegisterCommand(F(MQTT_TOPIC_PATTERN), [](const terminal::CommandContext &ctx) {
-        if (ctx.argc == 2) {
+    terminalRegisterCommand(F(MQTT_TOPIC_PATTERN), [](::terminal::CommandContext&& ctx) {
+        if (ctx.argv.size() == 2) {
             _setPattern(ctx.argv[1].c_str());
-            terminalOK();
+            terminalOK(ctx);
         } else {
-            terminalError(F("PATTERN name"));
+            terminalError(ctx, F("PATTERN name"));
         }        
     });
 
-    terminalRegisterCommand(F(MQTT_TOPIC_PATTERN_DURATION), [](const terminal::CommandContext &ctx) {
-        if (ctx.argc == 2) {
+    terminalRegisterCommand(F(MQTT_TOPIC_PATTERN_DURATION), [](::terminal::CommandContext&& ctx) {
+        if (ctx.argv.size() == 2) {
             _setPatternDuration(ctx.argv[1].toInt());
-            terminalOK();
+            terminalOK(ctx);
         } else {
-            terminalError(F("DURATION value"));
+            terminalError(ctx, F("DURATION value"));
         }
     });
 }

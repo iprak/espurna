@@ -63,3 +63,4 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "mcp23s08.h"
 #include "prometheus.h"
 #include "pwm.h"
+#include "ws2811.h"
