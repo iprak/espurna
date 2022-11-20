@@ -19,8 +19,8 @@ enum class MqttData { Pattern = 0, Duration = 1, Both = 2 };
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
-#define MQTT_TOPIC_PATTERN "pattern"
-#define MQTT_TOPIC_PATTERN_DURATION "duration"
+PROGMEM_STRING(MQTT_TOPIC_PATTERN, "pattern");
+PROGMEM_STRING(MQTT_TOPIC_PATTERN_DURATION, "duration");
 
 const char *SETTING_PATTERN_DURATION = "duration";
 const char *SETTING_PATTERN = "pattern";
@@ -488,7 +488,13 @@ void _setPattern(const char *name) {
  * Set the pattern duration.
  */
 void _setPatternDuration(uint8_t value) {
-    value = constrain(value, PATTERN_DURATION_MIN, PATTERN_DURATION_MAX);
+    //value = constrain(value, PATTERN_DURATION_MIN, PATTERN_DURATION_MAX);
+    if (value < PATTERN_DURATION_MIN){
+        value = PATTERN_DURATION_MIN;
+    }
+    else if (value > PATTERN_DURATION_MAX){
+        value = PATTERN_DURATION_MAX;
+    }
 
     if (value != pattern_duration) {
         pattern_duration = value;
@@ -538,27 +544,40 @@ void _ws2811Loop() {
     }
 }
 
-void _ws2811TerminalSetup() {
-    terminalRegisterCommand(F(MQTT_TOPIC_PATTERN), [](const terminal::CommandContext &ctx) {
-        if (ctx.argc == 2) {
-            _setPattern(ctx.argv[1].c_str());
-            terminalOK();
-        } else {
-            terminalError(F("PATTERN name"));
-        }        
-    });
-
-    terminalRegisterCommand(F(MQTT_TOPIC_PATTERN_DURATION), [](const terminal::CommandContext &ctx) {
-        if (ctx.argc == 2) {
-            _setPatternDuration(ctx.argv[1].toInt());
-            terminalOK();
-        } else {
-            terminalError(F("DURATION value"));
-        }
-    });
+static void _ws2811Pattern(::terminal::CommandContext&& ctx) {
+    if (ctx.argv.size() == 2) {
+        _setPattern(ctx.argv[1].begin());
+        terminalOK(ctx);
+    }
+    else{
+        terminalError(ctx, F("PATTERN name"));
+    }
 }
 
-void _ws2811MQTTCallback(unsigned int type, const char *topic, const char *payload) {
+static void _ws2811Duration(::terminal::CommandContext&& ctx) {
+    if (ctx.argv.size() == 2) {
+        const auto result = parseUnsigned(ctx.argv[1], 10);
+        if (result.ok) {
+            _setPatternDuration(result.value);
+            terminalOK(ctx);
+        }
+        else{
+    terminalError(ctx, F("Invalid duration"));
+        }
+        
+    }
+    else{
+        terminalError(ctx, F("DURATION value"));
+    }
+}
+
+static constexpr ::terminal::Command WS2811Commands[] PROGMEM {
+    {MQTT_TOPIC_PATTERN, _ws2811Pattern},
+    {MQTT_TOPIC_PATTERN_DURATION, _ws2811Duration}
+};
+
+
+void _ws2811MQTTCallback(unsigned int type, espurna::StringView topic, espurna::StringView payload) {
     if (type == MQTT_CONNECT_EVENT) {
         mqttSubscribe(MQTT_TOPIC_PATTERN);
         mqttSubscribe(MQTT_TOPIC_PATTERN_DURATION);
@@ -567,12 +586,15 @@ void _ws2811MQTTCallback(unsigned int type, const char *topic, const char *paylo
     }
 
     if (type == MQTT_MESSAGE_EVENT) {
-        String t = mqttMagnitude((char *)topic);
+        const auto t = mqttMagnitude(topic);
 
         if (t.equals(MQTT_TOPIC_PATTERN)) {
-            _setPattern(payload);
+            _setPattern(payload.begin());
         } else if (t.equals(MQTT_TOPIC_PATTERN_DURATION)) {
-            _setPatternDuration(atoi(payload));
+            const auto result = parseUnsigned(payload, 10);
+            if (result.ok) {
+                _setPatternDuration(result.value);
+            }
         }
     }
 }
@@ -595,5 +617,6 @@ void ws2811Setup() {
 
     espurnaRegisterLoop(_ws2811Loop);
     mqttRegister(_ws2811MQTTCallback);
-    _ws2811TerminalSetup();
+
+    espurna::terminal::add(WS2811Commands);
 }

@@ -155,6 +155,53 @@
     #define LED1_PIN            2
     #define LED1_PIN_INVERSE    1
 
+#elif defined(CUSTOM_WS2811)
+
+    // Info
+    #define MANUFACTURER        "CUSTOM"
+    #define DEVICE              "WS2811"
+    
+    #define RELAY1_PIN          13
+    #define RELAY1_TYPE         RELAY_TYPE_NORMAL
+
+    // Light
+    #define LED1_PIN            15
+
+    #define WS2811_DATA_PIN        12   //16
+
+    #define RELAY_SUPPORT           1
+    #define ALEXA_SUPPORT           0
+    #define API_SUPPORT             0
+    #define BROKER_SUPPORT          0
+    #define DOMOTICZ_SUPPORT        0
+    #define HOMEASSISTANT_SUPPORT   0
+    #define I2C_SUPPORT             0
+    #define MQTT_SUPPORT            1
+    #define NTP_SUPPORT             0
+    #define SCHEDULER_SUPPORT       0
+    #define SENSOR_SUPPORT          0
+    #define THINGSPEAK_SUPPORT      0
+    #define TELNET_SUPPORT          0
+    #define BUTTON_SUPPORT          0
+    #define MDNS_SERVER_SUPPORT     0
+    #define DEBUG_TELNET            0
+
+    #define HEARTBEAT_REPORT_SSID       0
+    #define HEARTBEAT_REPORT_MAC        0
+    #define HEARTBEAT_REPORT_RSSI       0
+    #define HEARTBEAT_REPORT_DATETIME   0
+    #define HEARTBEAT_REPORT_FREEHEAP   0
+    #define HEARTBEAT_REPORT_VCC        0
+    #define HEARTBEAT_REPORT_RELAY      0
+    #define HEARTBEAT_REPORT_LIGHT      0
+    #define HEARTBEAT_REPORT_DESCRIPTION    0
+    #define HEARTBEAT_REPORT_APP        0
+    #define HEARTBEAT_REPORT_VERSION    0
+    #define HEARTBEAT_REPORT_BOARD      0
+    #define HEARTBEAT_REPORT_LOADAVG    0
+    #define HEARTBEAT_REPORT_INTERVAL   0
+    #define HEARTBEAT_REPORT_BSSID      0
+
 #elif defined(WEMOS_D1_MINI)
 
     // Info
