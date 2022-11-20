@@ -368,7 +368,9 @@ void setup() {
         extraSetup();
     #endif
 
-    ws2811Setup();
+    #if WS2811_SUPPORT
+        ws2811Setup();
+    #endif
     
     // Update `cfg` version
     migrate();

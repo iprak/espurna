@@ -409,6 +409,109 @@ private:
 
 #endif
 
+
+#if WS2811_SUPPORT
+
+class WS2811Discovery : public Discovery {
+public:
+    explicit WS2811Discovery(Context& ctx) :
+        _ctx(ctx),
+        _relay(makeRelayContext()),     //WS2811 has just 1 relay
+        _relays(1)
+    {}
+
+    JsonObject& root() {
+        if (!_root) {
+            _root = &_ctx.makeObject();
+        }
+
+        return *_root;
+    }
+
+    bool ok() const override {
+        return (_relays) && (_index < _relays);
+    }
+
+    const String& uniqueId() {
+        if (!_unique_id.length()) {
+            _unique_id = _ctx.identifier() + '_' + F("light") + '_' + _index;
+        }
+        return _unique_id;
+    }
+
+    const String& topic() override {
+        if (!_topic.length()) {
+            _topic = _ctx.prefix();
+            _topic += F("/light/");     //Light not relay
+            _topic += uniqueId();
+            _topic += F("/config");
+        }
+        return _topic;
+    }
+
+    const String& message() override {
+        if (!_message.length()) {
+            auto& json = root();
+            json[F("dev")] = _ctx.device();
+            json[F("avty_t")] = _relay.availability.c_str();
+            json[F("pl_avail")] = _relay.payload_available.c_str();
+            json[F("pl_not_avail")] = _relay.payload_not_available.c_str();
+            json[F("pl_on")] = _relay.payload_on.c_str();
+            json[F("pl_off")] = _relay.payload_off.c_str();
+            json[F("uniq_id")] = uniqueId();
+            json[F("name")] = _ctx.name() + ' ' + _index;
+            json[F("stat_t")] = mqttTopic(MQTT_TOPIC_RELAY, _index);
+            json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_RELAY, _index);
+
+            json[F("color_mode")] = "onoff";
+            json[F("fx_cmd_t")] = mqttTopicSetter("pattern");
+            json[F("fx_stat_t")] = mqttTopic("WS2811/pattern");
+            
+            JsonArray& effects = json.createNestedArray("fx_list");
+            effects.add("auto");
+            effects.add("blink");
+            effects.add("double_chase");
+            effects.add("drop");
+            effects.add("drop_fill");
+            effects.add("outline");
+            effects.add("rainbow");
+            effects.add("tree_steps");
+
+            json.printTo(_message);
+        }
+        return _message;
+    }
+
+    bool next() override {
+        if (_index < _relays) {
+            auto current = _index;
+            ++_index;
+            if ((_index > current) && (_index < _relays)) {
+                _unique_id = "";
+                _topic = "";
+                _message = "";
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+private:
+    Context& _ctx;
+    JsonObject* _root { nullptr };
+
+    RelayContext _relay;
+    unsigned char _index { 0u };
+    unsigned char _relays { 0u };
+
+    String _unique_id;
+    String _topic;
+    String _message;
+};
+
+#endif
+
 // Example payload:
 // {
 //  "state": "ON",
@@ -1003,9 +1106,16 @@ void publishDiscovery() {
 #if LIGHT_PROVIDER != LIGHT_PROVIDER_NONE
     task->add<LightDiscovery>();
 #endif
-#if RELAY_SUPPORT
-    task->add<RelayDiscovery>();
+
+
+#if WS2811_SUPPORT
+    task->add<WS2811Discovery>();
+#else
+    #if RELAY_SUPPORT
+        task->add<RelayDiscovery>();
+    #endif
 #endif
+
 #if SENSOR_SUPPORT
     task->add<SensorDiscovery>();
 #endif

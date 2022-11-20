@@ -222,6 +222,9 @@ alignas(4) static constexpr char Modules[] PROGMEM_STRING_ATTR =
 #if UART_MQTT_SUPPORT
     "UART_MQTT "
 #endif
+#if WS2811_SUPPORT
+    "WS2811 "
+#endif
 #if WEB_SUPPORT
 #if WEBUI_IMAGE == WEBUI_IMAGE_SMALL
     "WEB_SMALL "

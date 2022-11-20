@@ -6,6 +6,10 @@ Copyright (C) 2020 by Indu Prakash
 
 */
 
+#include "espurna.h"
+
+#if WS2811_SUPPORT
+
 #include "FastLED.h"
 
 #include "api.h"
@@ -21,6 +25,7 @@ enum class MqttData { Pattern = 0, Duration = 1, Both = 2 };
 
 PROGMEM_STRING(MQTT_TOPIC_PATTERN, "pattern");
 PROGMEM_STRING(MQTT_TOPIC_PATTERN_DURATION, "duration");
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 
 const char *SETTING_PATTERN_DURATION = "duration";
 const char *SETTING_PATTERN = "pattern";
@@ -488,13 +493,7 @@ void _setPattern(const char *name) {
  * Set the pattern duration.
  */
 void _setPatternDuration(uint8_t value) {
-    //value = constrain(value, PATTERN_DURATION_MIN, PATTERN_DURATION_MAX);
-    if (value < PATTERN_DURATION_MIN){
-        value = PATTERN_DURATION_MIN;
-    }
-    else if (value > PATTERN_DURATION_MAX){
-        value = PATTERN_DURATION_MAX;
-    }
+    value = constrain(value, PATTERN_DURATION_MIN, PATTERN_DURATION_MAX);
 
     if (value != pattern_duration) {
         pattern_duration = value;
@@ -620,3 +619,5 @@ void ws2811Setup() {
 
     espurna::terminal::add(WS2811Commands);
 }
+
+#endif
