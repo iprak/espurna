@@ -54,6 +54,10 @@ Updated secure client support by Niek van der Maas < mail at niekvandermaas dot 
 #define MQTT_TOPIC_CMD              "cmd"
 #define MQTT_TOPIC_SCHEDULE         "schedule"
 
+#define MQTT_TOPIC_WS2812_LIGHT     "light"
+#define MQTT_TOPIC_WS2812_PATTERN   "pattern"
+#define MQTT_TOPIC_WS2812_NUMLEDS   "ledcount"
+
 void mqttHeartbeat(espurna::heartbeat::Callback);
 
 // stateless callback; generally, registered once per module when calling setup()

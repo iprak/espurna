@@ -28,9 +28,9 @@ PROGMEM_STRING(COMMAND_WS2812_PATTERN, "WS2812.pattern");
 PROGMEM_STRING(COMMAND_WS2812_NUM_LEDS, "WS2812.numLEDs");
 PROGMEM_STRING(COMMAND_WS2812_ON, "WS2812.on");
 
-#define SETTING_ON "ws2812.o"
-#define SETTING_NUM_LEDS "ws2812.n"
-#define SETTING_PATTERN "ws2812.p"
+PROGMEM_STRING(SETTING_ON, "ws2812.o");
+PROGMEM_STRING(SETTING_NUM_LEDS, "ws2812.n");
+PROGMEM_STRING(SETTING_PATTERN, "ws2812.p");
 
 #define DEFAULT_NUM_LEDS 50
 #define DEFAULT_DELAY 20
@@ -65,9 +65,7 @@ void propeller();
 const PatternList patternFns = {rainbow, rainbowLoop, random, redBlueBounce, rotatingRedBlue, propeller};
 const char *patternNames[] = {"rainbow", "rainbowLoop", "random", "redBlueBounce", "rotatingRedBlue", "propeller"};
 
-void clearAll() {
-    FastLED.clear(true);
-}
+void clearAll() { FastLED.clear(true); }
 
 void showDelay(unsigned long ms) {
     FastLED.show();
@@ -185,9 +183,9 @@ void propeller() {
 const char *getPatternName(uint8_t index) {
     return (index < 0 || index >= totalPatterns) ? "" : Patterns::patternNames[index];
 }
-void mqttSendLightOn() { mqttSend(MQTT_TOPIC_LIGHT, lightOn ? "1" : "0"); }
-void mqttSendPattern() { mqttSend(MQTT_TOPIC_PATTERN, getPatternName(currentPattern)); }
-void mqttSendNumLEDs() { mqttSend(MQTT_TOPIC_NUMLEDS, String(numLEDs).c_str()); }
+void mqttSendLightOn() { mqttSend(MQTT_TOPIC_WS2812_LIGHT, lightOn ? "1" : "0"); }
+void mqttSendPattern() { mqttSend(MQTT_TOPIC_WS2812_PATTERN, getPatternName(currentPattern)); }
+void mqttSendNumLEDs() { mqttSend(MQTT_TOPIC_WS2812_NUMLEDS, String(numLEDs).c_str()); }
 
 void initialize(uint8_t countValue, bool onValue, uint8_t patternValue) {
     bool needToSaveSettings = false;
@@ -299,7 +297,7 @@ void nextPattern() {
 }
 
 void buildDiscoveryFxList(JsonObject &json) {
-    JsonArray &effects = json.createNestedArray("fx_list");
+    JsonArray &effects = json.createNestedArray(F("fx_list"));
     for (uint8_t i = 0; i < totalPatterns; i++) {
         effects.add(Patterns::patternNames[i]);
     }
@@ -316,7 +314,7 @@ static void onInfo(::terminal::CommandContext &&ctx) { showInfo(ctx); }
 
 static void onPattern(::terminal::CommandContext &&ctx) {
     if (ctx.argv.size() == 2) {
-        if (ctx.argv[1].equals("next")) {
+        if (ctx.argv[1].equals(F("next"))) {
             nextPattern();
             terminalOK(ctx);
         } else {
@@ -373,9 +371,9 @@ static void onLightOn(::terminal::CommandContext &&ctx) {
 
 void mqttCallback(uint type, espurna::StringView topic, espurna::StringView payload) {
     if (type == MQTT_CONNECT_EVENT) {
-        mqttSubscribe(MQTT_TOPIC_LIGHT "/+"); // Single level wild card
-        mqttSubscribe(MQTT_TOPIC_PATTERN "/+");
-        mqttSubscribe(MQTT_TOPIC_NUMLEDS "/+");
+        mqttSubscribe(MQTT_TOPIC_WS2812_LIGHT);
+        mqttSubscribe(MQTT_TOPIC_WS2812_PATTERN);
+        mqttSubscribe(MQTT_TOPIC_WS2812_NUMLEDS);
 
         mqttSendLightOn(); // Send updates once MQTT has connected
         mqttSendPattern();
@@ -387,11 +385,11 @@ void mqttCallback(uint type, espurna::StringView topic, espurna::StringView payl
         const auto t = mqttMagnitude(topic);
         DEBUG_MSG_P(PSTR("[WS2812] %s\n"), t.c_str());
 
-        if (t.equals(MQTT_TOPIC_LIGHT)) { // light/set
+        if (t.equals(MQTT_TOPIC_WS2812_LIGHT)) { // light/set
             turnOnOff(payload.equals("1"));
-        } else if (t.equals(MQTT_TOPIC_PATTERN)) { 
+        } else if (t.equals(MQTT_TOPIC_WS2812_PATTERN)) {
             setPatternByName(payload.c_str());
-        } else if (t.equals(MQTT_TOPIC_NUMLEDS)) {
+        } else if (t.equals(MQTT_TOPIC_WS2812_NUMLEDS)) {
             const auto result = parseUnsigned(payload, 10);
             if (result.ok) {
                 uint8_t newCount = constrain(result.value, 0, MAX_NUM_LEDS);

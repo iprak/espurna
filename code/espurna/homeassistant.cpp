@@ -493,19 +493,19 @@ class WS2812Discovery : public Discovery {
                 json[F("name")] = _ctx.name();
                 json[F("pl_on")] = quote(relayPayload(PayloadStatus::On).toString());
                 json[F("pl_off")] = quote(relayPayload(PayloadStatus::Off).toString());
-                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_LIGHT);
-                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_LIGHT);
+                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_LIGHT);
+                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_LIGHT);
                 json[F("ic")] = "mdi:led-strip-variant";
 
                 json[F("color_mode")] = "onoff";
-                json[F("fx_cmd_t")] = mqttTopicSetter(MQTT_TOPIC_PATTERN);
-                json[F("fx_stat_t")] = mqttTopic(MQTT_TOPIC_PATTERN);
+                json[F("fx_cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_PATTERN);
+                json[F("fx_stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_PATTERN);
 
                 WS2812Controller::buildDiscoveryFxList(json);
             } else {
                 json[F("name")] = _ctx.name() + " numLEDs";
-                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_NUMLEDS);
-                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_NUMLEDS);
+                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_NUMLEDS);
+                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_NUMLEDS);
                 json[F("ic")] = "mdi:numeric";
 
                 json[F("min")] = 0;
