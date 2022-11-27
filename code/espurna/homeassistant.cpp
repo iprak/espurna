@@ -454,27 +454,46 @@ class WS2811Discovery : public Discovery {
 
 #if WS2812_SUPPORT
 
+#define DISCOVERY_INDEX_LIGHT 0
+#define DISCOVERY_INDEX_NUMLEDS 1
+#define DISCOVERY_INDEX_PLAYLIST 2
+#define DISCOVERY_INDEX_PLAYDURATION 3
+
 class WS2812Discovery : public Discovery {
   public:
-    explicit WS2812Discovery(Context &ctx) : _ctx(ctx), _total(2) {}
+    explicit WS2812Discovery(Context &ctx) : _ctx(ctx), _total(4) {}
 
-    JsonObject &root() {
-        return _ctx.makeObject();
-        // return *_root;
-    }
+    JsonObject &root() { return _ctx.makeObject(); }
 
     bool ok() const override { return _index < _total; }
 
     const String &uniqueId() {
         if (!_unique_id.length()) {
-            _unique_id = _ctx.identifier() + '_' + (_index == 0 ? F("light") : F("numleds"));
+            if (_index == DISCOVERY_INDEX_LIGHT) {
+                _unique_id = _ctx.identifier() + '_' + F("light");
+            } else if (_index == DISCOVERY_INDEX_NUMLEDS) {
+                _unique_id = _ctx.identifier() + '_' + F("numleds");
+            } else if (_index == DISCOVERY_INDEX_PLAYLIST) {
+                _unique_id = _ctx.identifier() + '_' + F("playlist");
+            } else if (_index == DISCOVERY_INDEX_PLAYDURATION) {
+                _unique_id = _ctx.identifier() + '_' + F("playduration");
+            }
         }
         return _unique_id;
     }
 
     const String &topic() override {
         if (!_topic.length()) {
-            _topic = _ctx.prefix() + (_index == 0 ? F("/light/") : F("/number/")) + uniqueId() + F("/config");
+            if (_index == DISCOVERY_INDEX_LIGHT) {
+                _topic = _ctx.prefix() + F("/light/") + uniqueId() + F("/config");
+            } else if (_index == DISCOVERY_INDEX_NUMLEDS) {
+                // https://www.home-assistant.io/integrations/number.mqtt/
+                _topic = _ctx.prefix() + F("/number/") + uniqueId() + F("/config");
+            } else if (_index == DISCOVERY_INDEX_PLAYLIST) {
+                _topic = _ctx.prefix() + F("/switch/") + uniqueId() + F("/config");
+            } else if (_index == DISCOVERY_INDEX_PLAYDURATION) {
+                _topic = _ctx.prefix() + F("/number/") + uniqueId() + F("/config");
+            }
         }
         return _topic;
     }
@@ -489,27 +508,40 @@ class WS2812Discovery : public Discovery {
             json[F("pl_not_avail")] = quote(mqttPayloadStatus(false));
             json[F("uniq_id")] = uniqueId();
 
-            if (_index == 0) {
+            if (_index == DISCOVERY_INDEX_LIGHT) {
                 json[F("name")] = _ctx.name();
+                json[F("ic")] = F("mdi:led-strip-variant");
                 json[F("pl_on")] = quote(relayPayload(PayloadStatus::On).toString());
                 json[F("pl_off")] = quote(relayPayload(PayloadStatus::Off).toString());
                 json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_LIGHT);
                 json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_LIGHT);
-                json[F("ic")] = "mdi:led-strip-variant";
 
                 json[F("color_mode")] = "onoff";
                 json[F("fx_cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_PATTERN);
                 json[F("fx_stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_PATTERN);
-
                 WS2812Controller::buildDiscoveryFxList(json);
-            } else {
-                json[F("name")] = _ctx.name() + " numLEDs";
+
+            } else if (_index == DISCOVERY_INDEX_NUMLEDS) {
+                json[F("name")] = _ctx.name() + F(" numLEDs");
+                json[F("ic")] = F("mdi:numeric");
                 json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_NUMLEDS);
                 json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_NUMLEDS);
-                json[F("ic")] = "mdi:numeric";
-
                 json[F("min")] = 0;
                 json[F("max")] = MAX_NUM_LEDS;
+            } else if (_index == DISCOVERY_INDEX_PLAYLIST) {
+                json[F("name")] = _ctx.name() + F(" playlist");
+                json[F("ic")] = F("mdi:playlist-play");
+                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_PLAYLIST);
+                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_PLAYLIST);
+                json[F("pl_on")] = quote(relayPayload(PayloadStatus::On).toString());
+                json[F("pl_off")] = quote(relayPayload(PayloadStatus::Off).toString());
+            } else if (_index == DISCOVERY_INDEX_PLAYDURATION) {
+                json[F("name")] = _ctx.name() + F(" playDuration");
+                json[F("ic")] = F("mdi:timer-play");
+                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_PLAYDURATION);
+                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_PLAYDURATION);
+                json[F("min")] = MIN_PLAY_DURATION;
+                json[F("max")] = MAX_PLAY_DURATION;
             }
 
             json.printTo(_message);
@@ -540,92 +572,6 @@ class WS2812Discovery : public Discovery {
     uint8_t _index{0u};
     uint8_t _total{0u};
 };
-
-// class WS2812LEDCountDiscovery : public Discovery {
-//   public:
-//     explicit WS2812LEDCountDiscovery(Context &ctx) : _ctx(ctx) {}
-
-//     JsonObject &root() {
-//         if (!_root) {
-//             _root = &_ctx.makeObject();
-//         }
-
-//         return *_root;
-//     }
-
-//     bool ok() const override { return true; }
-
-//     const String &topic() override {
-//         if (!_topic.length()) {
-//             _topic = _ctx.prefix() + F("/sensor/") + uniqueId() + F("/config");
-//         }
-
-//         return _topic;
-//     }
-
-//     const String &message() override {
-//         if (!_message.length()) {
-//             auto &json = root();
-//             json[F("dev")] = _ctx.device();
-//             json[F("uniq_id")] = uniqueId();
-
-//             json[F("name")] = _ctx.name() + ' ' + name() + ' ' + localId();
-//             json[F("stat_t")] = mqttTopic("ledcount");
-
-//             json.printTo(_message);
-//         }
-
-//         return _message;
-//     }
-
-//     const String &name() {
-//         if (!_name.length()) {
-//             _name = magnitudeTypeTopic(_info.type);
-//         }
-
-//         return _name;
-//     }
-
-//     unsigned char localId() const { return _info.index; }
-
-//     const String &uniqueId() {
-//         if (!_unique_id.length()) {
-//             _unique_id = _ctx.identifier() + '_' + name() + '_' + localId();
-//         }
-
-//         return _unique_id;
-//     }
-
-//     bool next() override {
-//         if (_index < _magnitudes) {
-//             auto current = _index;
-//             ++_index;
-//             if ((_index > current) && (_index < _magnitudes)) {
-//                 _info = magnitudeInfo(_index);
-//                 _unique_id = "";
-//                 _name = "";
-//                 _topic = "";
-//                 _message = "";
-//                 return true;
-//             }
-//         }
-
-//         return false;
-//     }
-
-//   private:
-//     Context &_ctx;
-//     JsonObject *_root{nullptr};
-
-//     unsigned char _magnitudes{0u};
-//     unsigned char _index{0u};
-//     sensor::Info _info;
-
-//     String _unique_id;
-//     String _name;
-//     String _topic;
-//     String _message;
-// };
 
 #endif
 

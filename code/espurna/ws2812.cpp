@@ -24,17 +24,23 @@ namespace WS2812Controller {
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 PROGMEM_STRING(COMMAND_WS2812, "WS2812");
-PROGMEM_STRING(COMMAND_WS2812_PATTERN, "WS2812.pattern");
 PROGMEM_STRING(COMMAND_WS2812_NUM_LEDS, "WS2812.numLEDs");
 PROGMEM_STRING(COMMAND_WS2812_ON, "WS2812.on");
+PROGMEM_STRING(COMMAND_WS2812_PATTERN, "WS2812.pattern");
+PROGMEM_STRING(COMMAND_WS2812_PLAYLIST, "WS2812.playlist");
+PROGMEM_STRING(COMMAND_WS2812_PLAYDURATION, "WS2812.playduration");
 
 PROGMEM_STRING(SETTING_ON, "ws2812.o");
 PROGMEM_STRING(SETTING_NUM_LEDS, "ws2812.n");
 PROGMEM_STRING(SETTING_PATTERN, "ws2812.p");
+PROGMEM_STRING(SETTING_PLAYLIST, "ws2812.pl");
+PROGMEM_STRING(SETTING_PLAYDURATION, "ws2812.pd");
 
 #define DEFAULT_NUM_LEDS 50
 #define DEFAULT_DELAY 20
 #define DEFAULT_PATTERN 0
+#define DEFAULT_PLAYLIST false
+#define DEFAULT_PLAYDURATION 30 // seconds
 #define DEFAULT_ON_STATE true
 #define DEFAULT_BRIGHTNESS 200
 
@@ -45,6 +51,14 @@ uint8_t currentPattern = DEFAULT_PATTERN;
 uint8_t numLEDs = 0;
 CRGB leds[MAX_NUM_LEDS];
 bool lightOn;
+bool playlistEnabled;
+uint8_t playDuration; // seconds
+
+espurna::timer::SystemTimer _timer;
+
+unsigned long last_msg_time = 0;
+unsigned long last_pattern_start = 0;
+bool showLoopMessage = false;
 
 namespace Patterns {
 
@@ -57,13 +71,18 @@ bool bouncedRight = false;
 void rainbow();
 void rainbowLoop();
 void random();
-// void colorBounce();
 void redBlueBounce();
 void rotatingRedBlue();
 void propeller();
+void red();
+void blue();
+void green();
 
-const PatternList patternFns = {rainbow, rainbowLoop, random, redBlueBounce, rotatingRedBlue, propeller};
-const char *patternNames[] = {"rainbow", "rainbowLoop", "random", "redBlueBounce", "rotatingRedBlue", "propeller"};
+const PatternList patternFns = {blue,   green, propeller,     rainbow,        rainbowLoop,
+                                random, red,   redBlueBounce, rotatingRedBlue};
+
+const char *patternNames[] = {"blue",   "green", "propeller",     "rainbow",        "rainbowLoop",
+                              "random", "red",   "redBlueBounce", "rotatingRedBlue"};
 
 void clearAll() { FastLED.clear(true); }
 
@@ -132,27 +151,6 @@ void redBlueBounce() {
     showDelay(20);
 }
 
-// void redBlueBounce() {
-//     index++;
-//     if (index >= numLEDs) {
-//         index = 0;
-//     }
-//     uint idexR = index;
-//     uint idexB = antipodal_index(idexR);
-//     uint thathue = (0 + 160) % 255;
-
-//     for (uint i = 0; i < numLEDs; i++) {
-//         if (i == idexR) {
-//             leds[i] = CHSV(0, 255, 255);
-//         } else if (i == idexB) {
-//             leds[i] = CHSV(thathue, 255, 255);
-//         } else {
-//             leds[i] = CHSV(0, 0, 0);
-//         }
-//     }
-//     showDelay(20);
-// }
-
 void rotatingRedBlue() {
     index++;
     if (index >= numLEDs) {
@@ -178,30 +176,40 @@ void propeller() {
     }
     showDelay(25);
 }
+
+void red() { FastLED.showColor(CRGB(255, 0, 0)); }
+void blue() { FastLED.showColor(CRGB(0, 0, 255)); }
+void green() { FastLED.showColor(CRGB(0, 255, 0)); }
+
 } // namespace Patterns
+
+void nextPattern();
 
 const char *getPatternName(uint8_t index) {
     return (index < 0 || index >= totalPatterns) ? "" : Patterns::patternNames[index];
 }
+
 void mqttSendLightOn() { mqttSend(MQTT_TOPIC_WS2812_LIGHT, lightOn ? "1" : "0"); }
 void mqttSendPattern() { mqttSend(MQTT_TOPIC_WS2812_PATTERN, getPatternName(currentPattern)); }
 void mqttSendNumLEDs() { mqttSend(MQTT_TOPIC_WS2812_NUMLEDS, String(numLEDs).c_str()); }
+void mqttSendPlaylist() { mqttSend(MQTT_TOPIC_WS2812_PLAYLIST, playlistEnabled ? "1" : "0"); }
+void mqttSendPlayduration() { mqttSend(MQTT_TOPIC_WS2812_PLAYDURATION, String(playDuration).c_str()); }
 
-void initialize(uint8_t countValue, bool onValue, uint8_t patternValue) {
+void initialize(uint8_t countValue, bool onValue, uint8_t patternValue, bool playlistValue, uint8_t playdurationValue) {
     bool needToSaveSettings = false;
 
     totalPatterns = ARRAY_SIZE(Patterns::patternNames);
 
     if (lightOn != onValue) {
         lightOn = onValue;
-        setSetting(SETTING_ON, onValue);
+        setSetting(SETTING_ON, lightOn);
         needToSaveSettings = true;
     }
 
     countValue = constrain(countValue, 0, MAX_NUM_LEDS);
     if (numLEDs != countValue) {
         numLEDs = countValue;
-        setSetting(SETTING_NUM_LEDS, countValue);
+        setSetting(SETTING_NUM_LEDS, numLEDs);
         needToSaveSettings = true;
     }
 
@@ -209,6 +217,19 @@ void initialize(uint8_t countValue, bool onValue, uint8_t patternValue) {
     if (currentPattern != patternValue) {
         currentPattern = patternValue;
         setSetting(SETTING_PATTERN, currentPattern);
+        needToSaveSettings = true;
+    }
+
+    if (playlistEnabled != playlistValue) {
+        playlistEnabled = playlistValue;
+        setSetting(SETTING_PLAYLIST, playlistEnabled);
+        needToSaveSettings = true;
+    }
+
+    playdurationValue = constrain(playdurationValue, 0, 100);
+    if (playDuration != playdurationValue) {
+        playDuration = playdurationValue;
+        setSetting(SETTING_PLAYDURATION, playDuration);
         needToSaveSettings = true;
     }
 
@@ -230,16 +251,22 @@ void initialize(uint8_t countValue, bool onValue, uint8_t patternValue) {
 }
 
 void loop() {
-    static unsigned long last_msg_time;
-    static bool messageShow = false;
-
     if (!lightOn || Update.isRunning()) //! wifiConnected()
         return;
 
     unsigned long current_time = millis();
 
-    if (!messageShow || ((current_time - last_msg_time) > DEBUG_LOG_PERIOD)) {
-        messageShow = true;
+    if (playlistEnabled) {
+        if (last_pattern_start == 0) {
+            last_pattern_start = current_time;
+        } else if (abs(current_time - last_pattern_start) > (playDuration * 1000)) {
+            last_pattern_start = current_time;
+            nextPattern();
+        }
+    }
+
+    if (!showLoopMessage || (abs(current_time - last_msg_time) > DEBUG_LOG_PERIOD)) {
+        showLoopMessage = true;
         last_msg_time = current_time;
         DEBUG_MSG_P(PSTR("[WS2812] %s\n"), getPatternName(currentPattern));
     }
@@ -250,6 +277,8 @@ void loop() {
     }
 }
 
+/// @brief Sets new pattern. Sends MQTT update.
+/// @param newValue
 void setPattern(uint8_t newValue) {
     newValue = constrain(newValue, 0, totalPatterns - 1);
     DEBUG_MSG_P(PSTR("[WS2812] setPattern(%d) current=%d\n"), newValue, currentPattern);
@@ -261,6 +290,8 @@ void setPattern(uint8_t newValue) {
     }
 }
 
+/// @brief Sets new pattern by name. Sends MQTT update.
+/// @param patternName
 void setPatternByName(const char *patternName) {
     DEBUG_MSG_P(PSTR("[WS2812] setPatternByName(%s)\n"), patternName);
     for (uint8_t i = 0; i < totalPatterns; i++) {
@@ -269,10 +300,10 @@ void setPatternByName(const char *patternName) {
             return;
         }
     }
-
-    setPattern(DEFAULT_PATTERN); // Fall to DEFAULT_PATTERN
 }
 
+/// @brief Turn strip on/off. Sends MQTT update.
+/// @param newState
 void turnOnOff(bool newState) {
     DEBUG_MSG_P(PSTR("[WS2812] turnOnOff(%d) state=%d\n"), newState, lightOn);
     if (lightOn != newState) {
@@ -284,6 +315,31 @@ void turnOnOff(bool newState) {
         if (!newState) {
             Patterns::clearAll();
         }
+    }
+}
+
+/// @brief Enable/disable playlist. Sends MQTT update.
+/// @param newState
+void enablePlaylist(bool newState) {
+    DEBUG_MSG_P(PSTR("[WS2812] enablePlaylist(%d) state=%d\n"), newState, playlistEnabled);
+    if (playlistEnabled != newState) {
+        playlistEnabled = newState;
+        setSetting(SETTING_PLAYLIST, playlistEnabled);
+        saveSettings();
+        mqttSendPlaylist();
+    }
+}
+
+/// @brief Sets new playDuration. Sends MQTT update.
+/// @param newValue
+void setPlayDuration(uint8_t newValue) {
+    newValue = constrain(newValue, MIN_PLAY_DURATION, MAX_PLAY_DURATION);
+    DEBUG_MSG_P(PSTR("[WS2812] playDuration(%d) state=%d\n"), newValue, playDuration);
+    if (playDuration != newValue) {
+        playDuration = newValue;
+        setSetting(SETTING_PLAYDURATION, playDuration);
+        saveSettings();
+        mqttSendPlayduration();
     }
 }
 
@@ -338,7 +394,7 @@ static void onNumLEDs(::terminal::CommandContext &&ctx) {
         if (result.ok) {
             uint8_t newCount = constrain(result.value, 0, MAX_NUM_LEDS);
             if (newCount != numLEDs) {
-                initialize(newCount, lightOn, currentPattern);
+                initialize(newCount, lightOn, currentPattern, playlistEnabled, playDuration);
                 mqttSendNumLEDs();
             }
 
@@ -367,17 +423,55 @@ static void onLightOn(::terminal::CommandContext &&ctx) {
     }
 }
 
+static void onPlaylist(::terminal::CommandContext &&ctx) {
+    if (ctx.argv.size() == 2) {
+        const auto result = parseUnsigned(ctx.argv[1], 10);
+        if (result.ok) {
+            enablePlaylist(result.value == 1);
+            showInfo(ctx);
+            terminalOK(ctx);
+        } else {
+            terminalError(ctx, F("invalid argument"));
+        }
+    } else {
+        terminalError(ctx, F("WS2812.playlist 1/0"));
+    }
+}
+
+static void onPlayDuration(::terminal::CommandContext &&ctx) {
+    if (ctx.argv.size() == 2) {
+        const auto result = parseUnsigned(ctx.argv[1], 10);
+        if (result.ok) {
+            setPlayDuration(result.value);
+            showInfo(ctx);
+            terminalOK(ctx);
+        } else {
+            terminalError(ctx, F("invalid argument"));
+        }
+    } else {
+        terminalError(ctx, F("WS2812.playDuration count"));
+    }
+}
+
 } // namespace commands
+
+void setupMQTT() {
+    mqttSubscribe(MQTT_TOPIC_WS2812_LIGHT);
+    mqttSubscribe(MQTT_TOPIC_WS2812_PATTERN);
+    mqttSubscribe(MQTT_TOPIC_WS2812_NUMLEDS);
+    mqttSubscribe(MQTT_TOPIC_WS2812_PLAYLIST);
+    mqttSubscribe(MQTT_TOPIC_WS2812_PLAYDURATION);
+
+    mqttSendLightOn(); // Send updates once MQTT has connected
+    mqttSendPattern();
+    mqttSendNumLEDs();
+    mqttSendPlaylist();
+    mqttSendPlayduration();
+}
 
 void mqttCallback(uint type, espurna::StringView topic, espurna::StringView payload) {
     if (type == MQTT_CONNECT_EVENT) {
-        mqttSubscribe(MQTT_TOPIC_WS2812_LIGHT);
-        mqttSubscribe(MQTT_TOPIC_WS2812_PATTERN);
-        mqttSubscribe(MQTT_TOPIC_WS2812_NUMLEDS);
-
-        mqttSendLightOn(); // Send updates once MQTT has connected
-        mqttSendPattern();
-        mqttSendNumLEDs();
+        _timer.once(espurna::duration::Milliseconds(250), setupMQTT); // Do this after HomeAssistant has been setup
         return;
     }
 
@@ -387,6 +481,8 @@ void mqttCallback(uint type, espurna::StringView topic, espurna::StringView payl
 
         if (t.equals(MQTT_TOPIC_WS2812_LIGHT)) { // light/set
             turnOnOff(payload.equals("1"));
+        } else if (t.equals(MQTT_TOPIC_WS2812_PLAYLIST)) {
+            enablePlaylist(payload.equals("1"));
         } else if (t.equals(MQTT_TOPIC_WS2812_PATTERN)) {
             setPatternByName(payload.c_str());
         } else if (t.equals(MQTT_TOPIC_WS2812_NUMLEDS)) {
@@ -394,18 +490,25 @@ void mqttCallback(uint type, espurna::StringView topic, espurna::StringView payl
             if (result.ok) {
                 uint8_t newCount = constrain(result.value, 0, MAX_NUM_LEDS);
                 if (newCount != numLEDs) {
-                    initialize(newCount, lightOn, currentPattern);
+                    initialize(newCount, lightOn, currentPattern, playlistEnabled, playDuration);
                     mqttSendNumLEDs();
                 }
+            }
+        } else if (t.equals(MQTT_TOPIC_WS2812_PLAYDURATION)) {
+            const auto result = parseUnsigned(payload, 10);
+            if (result.ok) {
+                setPlayDuration(result.value);
             }
         }
     }
 }
 
 static constexpr ::terminal::Command Commands[] PROGMEM{{COMMAND_WS2812, commands::onInfo},
-                                                        {COMMAND_WS2812_PATTERN, commands::onPattern},
                                                         {COMMAND_WS2812_NUM_LEDS, commands::onNumLEDs},
-                                                        {COMMAND_WS2812_ON, commands::onLightOn}};
+                                                        {COMMAND_WS2812_ON, commands::onLightOn},
+                                                        {COMMAND_WS2812_PATTERN, commands::onPattern},
+                                                        {COMMAND_WS2812_PLAYLIST, commands::onPlaylist},
+                                                        {COMMAND_WS2812_PLAYDURATION, commands::onPlayDuration}};
 
 void setup() {
     mqttRegister(mqttCallback);
@@ -413,7 +516,8 @@ void setup() {
     espurnaRegisterLoop(loop);
 
     initialize(getSetting(SETTING_NUM_LEDS, DEFAULT_NUM_LEDS), getSetting(SETTING_ON, DEFAULT_ON_STATE),
-               getSetting(SETTING_PATTERN, DEFAULT_PATTERN));
+               getSetting(SETTING_PATTERN, DEFAULT_PATTERN), getSetting(SETTING_PLAYLIST, DEFAULT_PLAYLIST),
+               getSetting(SETTING_PLAYDURATION, DEFAULT_PLAYDURATION));
 }
 } // namespace WS2812Controller
 
