@@ -20,6 +20,7 @@ Copyright (C) 2019-2022 by Maxim Prokhorov <prokhorov dot max at outlook dot com
 #include "relay.h"
 #include "sensor.h"
 #include "ws.h"
+#include "ws2812.h"
 
 #include <ArduinoJson.h>
 
@@ -34,17 +35,11 @@ namespace build {
 
 PROGMEM_STRING(Prefix, HOMEASSISTANT_PREFIX);
 
-constexpr StringView prefix() {
-    return Prefix;
-}
+constexpr StringView prefix() { return Prefix; }
 
-constexpr bool enabled() {
-    return 1 == HOMEASSISTANT_ENABLED;
-}
+constexpr bool enabled() { return 1 == HOMEASSISTANT_ENABLED; }
 
-constexpr bool retain() {
-    return 1 == HOMEASSISTANT_RETAIN;
-}
+constexpr bool retain() { return 1 == HOMEASSISTANT_RETAIN; }
 
 } // namespace build
 
@@ -57,17 +52,11 @@ PROGMEM_STRING(Retain, "haRetain");
 
 } // namespace keys
 
-String prefix() {
-    return getSetting(keys::Prefix, build::prefix());
-}
+String prefix() { return getSetting(keys::Prefix, build::prefix()); }
 
-bool enabled() {
-    return getSetting(keys::Enabled, build::enabled());
-}
+bool enabled() { return getSetting(keys::Enabled, build::enabled()); }
 
-bool retain() {
-    return getSetting(keys::Retain, build::retain());
-}
+bool retain() { return getSetting(keys::Retain, build::retain()); }
 
 } // namespace settings
 
@@ -97,9 +86,7 @@ done:
     return value;
 }
 
-String normalize_ascii(StringView value, bool lower) {
-    return normalize_ascii(String(value), lower);
-}
+String normalize_ascii(StringView value, bool lower) { return normalize_ascii(String(value), lower); }
 
 // Common data used across the discovery payloads.
 // ref. https://developers.home-assistant.io/docs/entity_registry_index/
@@ -140,7 +127,7 @@ BuildStrings make_build_strings() {
 }
 
 class Device {
-public:
+  public:
     // XXX: take care when adding / removing keys and values below
     // - `const char*` is copied by pointer value, persistent pointers make sure
     //   it is valid for the duration of this objects lifetime
@@ -148,28 +135,26 @@ public:
     //   it is **copied inside of the buffer**, and will take `strlen()` bytes
     // - allocating more objects **will silently corrupt** buffer region
     //   while there are *some* checks, current version is going to break
-    static constexpr size_t BufferSize { JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(6) };
+    static constexpr size_t BufferSize{JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(6)};
 
     using Buffer = StaticJsonBuffer<BufferSize>;
     using BufferPtr = std::unique_ptr<Buffer>;
 
     Device() = delete;
 
-    Device(const Device&) = delete;
-    Device& operator=(const Device&) = delete;
+    Device(const Device &) = delete;
+    Device &operator=(const Device &) = delete;
 
-    Device(Device&&) = delete;
-    Device& operator=(Device&&) = delete;
+    Device(Device &&) = delete;
+    Device &operator=(Device &&) = delete;
 
-    Device(ConfigStrings config, BuildStrings build) :
-        _config(std::make_unique<ConfigStrings>(std::move(config))),
-        _build(std::make_unique<BuildStrings>(std::move(build))),
-        _buffer(std::make_unique<Buffer>()),
-        _root(_buffer->createObject())
-    {
+    Device(ConfigStrings config, BuildStrings build)
+        : _config(std::make_unique<ConfigStrings>(std::move(config))),
+          _build(std::make_unique<BuildStrings>(std::move(build))), _buffer(std::make_unique<Buffer>()),
+          _root(_buffer->createObject()) {
         _root["name"] = _config->name.c_str();
 
-        auto& ids = _root.createNestedArray("ids");
+        auto &ids = _root.createNestedArray("ids");
         ids.add(_config->identifier.c_str());
 
         _root["sw"] = _build->version.c_str();
@@ -177,23 +162,15 @@ public:
         _root["mdl"] = _build->device.c_str();
     }
 
-    const String& name() const {
-        return _config->name;
-    }
+    const String &name() const { return _config->name; }
 
-    const String& prefix() const {
-        return _config->prefix;
-    }
+    const String &prefix() const { return _config->prefix; }
 
-    const String& identifier() const {
-        return _config->identifier;
-    }
+    const String &identifier() const { return _config->identifier; }
 
-    JsonObject& root() {
-        return _root;
-    }
+    JsonObject &root() { return _root; }
 
-private:
+  private:
     using ConfigStringsPtr = std::unique_ptr<ConfigStrings>;
     ConfigStringsPtr _config;
 
@@ -201,43 +178,28 @@ private:
     BuildStringsPtr _build;
 
     BufferPtr _buffer;
-    JsonObject& _root;
+    JsonObject &_root;
 };
 
 using DevicePtr = std::unique_ptr<Device>;
 using JsonBufferPtr = std::unique_ptr<DynamicJsonBuffer>;
 
 class Context {
-public:
+  public:
     Context() = delete;
-    Context(DevicePtr device, size_t capacity) :
-        _device(std::move(device)),
-        _capacity(capacity)
-    {}
+    Context(DevicePtr device, size_t capacity) : _device(std::move(device)), _capacity(capacity) {}
 
-    const String& name() const {
-        return _device->name();
-    }
+    const String &name() const { return _device->name(); }
 
-    const String& prefix() const {
-        return _device->prefix();
-    }
+    const String &prefix() const { return _device->prefix(); }
 
-    const String& identifier() const {
-        return _device->identifier();
-    }
+    const String &identifier() const { return _device->identifier(); }
 
-    JsonObject& device() {
-        return _device->root();
-    }
+    JsonObject &device() { return _device->root(); }
 
-    void reset() {
-        _json = std::make_unique<DynamicJsonBuffer>(_capacity);
-    }
+    void reset() { _json = std::make_unique<DynamicJsonBuffer>(_capacity); }
 
-    size_t capacity() const {
-        return _capacity;
-    }
+    size_t capacity() const { return _capacity; }
 
     size_t size() {
         if (_json) {
@@ -247,7 +209,7 @@ public:
         return 0;
     }
 
-    JsonObject& makeObject() {
+    JsonObject &makeObject() {
         if (!_json) {
             reset();
         }
@@ -255,24 +217,18 @@ public:
         return _json->createObject();
     }
 
-private:
+  private:
     String _prefix;
     DevicePtr _device;
 
-    JsonBufferPtr _json { nullptr };
-    size_t _capacity { 0ul };
+    JsonBufferPtr _json{nullptr};
+    size_t _capacity{0ul};
 };
 
-String quote(String&& value) {
-    if (value.equalsIgnoreCase("y")
-        || value.equalsIgnoreCase("n")
-        || value.equalsIgnoreCase("yes")
-        || value.equalsIgnoreCase("no")
-        || value.equalsIgnoreCase("true")
-        || value.equalsIgnoreCase("false")
-        || value.equalsIgnoreCase("on")
-        || value.equalsIgnoreCase("off")
-    ) {
+String quote(String &&value) {
+    if (value.equalsIgnoreCase("y") || value.equalsIgnoreCase("n") || value.equalsIgnoreCase("yes") ||
+        value.equalsIgnoreCase("no") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("false") ||
+        value.equalsIgnoreCase("on") || value.equalsIgnoreCase("off")) {
         String result;
         result.reserve(value.length() + 2);
         result += '"';
@@ -291,16 +247,16 @@ String quote(String&& value) {
 // - In case the object uses the JSON makeObject() as state, make sure we don't use it (state)
 //   and the object itself after next() or ok() return false
 // - Make sure JSON state is not created on construction, but lazy-loaded as soon as it is needed.
-//   Meaning, we don't cause invalid refs immediatly when there are more than 1 discovery object present and we reset the storage.
+//   Meaning, we don't cause invalid refs immediatly when there are more than 1 discovery object present and we reset
+//   the storage.
 
 class Discovery {
-public:
-    virtual ~Discovery() {
-    }
+  public:
+    virtual ~Discovery() {}
 
     virtual bool ok() const = 0;
-    virtual const String& topic() = 0;
-    virtual const String& message() = 0;
+    virtual const String &topic() = 0;
+    virtual const String &message() = 0;
     virtual bool next() = 0;
 };
 
@@ -315,24 +271,15 @@ struct RelayContext {
 };
 
 RelayContext makeRelayContext() {
-    return {
-        mqttTopic(MQTT_TOPIC_STATUS),
-        quote(mqttPayloadStatus(true)),
-        quote(mqttPayloadStatus(false)),
-        quote(relayPayload(PayloadStatus::On).toString()),
-        quote(relayPayload(PayloadStatus::Off).toString())
-    };
+    return {mqttTopic(MQTT_TOPIC_STATUS), quote(mqttPayloadStatus(true)), quote(mqttPayloadStatus(false)),
+            quote(relayPayload(PayloadStatus::On).toString()), quote(relayPayload(PayloadStatus::Off).toString())};
 }
 
 class RelayDiscovery : public Discovery {
-public:
-    explicit RelayDiscovery(Context& ctx) :
-        _ctx(ctx),
-        _relay(makeRelayContext()),
-        _relays(relayCount())
-    {}
+  public:
+    explicit RelayDiscovery(Context &ctx) : _ctx(ctx), _relay(makeRelayContext()), _relays(relayCount()) {}
 
-    JsonObject& root() {
+    JsonObject &root() {
         if (!_root) {
             _root = &_ctx.makeObject();
         }
@@ -340,18 +287,16 @@ public:
         return *_root;
     }
 
-    bool ok() const override {
-        return (_relays) && (_index < _relays);
-    }
+    bool ok() const override { return (_relays) && (_index < _relays); }
 
-    const String& uniqueId() {
+    const String &uniqueId() {
         if (!_unique_id.length()) {
             _unique_id = _ctx.identifier() + '_' + F("relay") + '_' + _index;
         }
         return _unique_id;
     }
 
-    const String& topic() override {
+    const String &topic() override {
         if (!_topic.length()) {
             _topic = _ctx.prefix();
             _topic += F("/switch/");
@@ -361,9 +306,9 @@ public:
         return _topic;
     }
 
-    const String& message() override {
+    const String &message() override {
         if (!_message.length()) {
-            auto& json = root();
+            auto &json = root();
             json[F("dev")] = _ctx.device();
             json[F("avty_t")] = _relay.availability.c_str();
             json[F("pl_avail")] = _relay.payload_available.c_str();
@@ -394,13 +339,13 @@ public:
         return false;
     }
 
-private:
-    Context& _ctx;
-    JsonObject* _root { nullptr };
+  private:
+    Context &_ctx;
+    JsonObject *_root{nullptr};
 
     RelayContext _relay;
-    unsigned char _index { 0u };
-    unsigned char _relays { 0u };
+    unsigned char _index{0u};
+    unsigned char _relays{0u};
 
     String _unique_id;
     String _topic;
@@ -409,18 +354,15 @@ private:
 
 #endif
 
-
 #if WS2811_SUPPORT
 
 class WS2811Discovery : public Discovery {
-public:
-    explicit WS2811Discovery(Context& ctx) :
-        _ctx(ctx),
-        _relay(makeRelayContext()),     //WS2811 has just 1 relay
-        _relays(1)
-    {}
+  public:
+    explicit WS2811Discovery(Context &ctx)
+        : _ctx(ctx), _relay(makeRelayContext()), // WS2811 has just 1 relay
+          _relays(1) {}
 
-    JsonObject& root() {
+    JsonObject &root() {
         if (!_root) {
             _root = &_ctx.makeObject();
         }
@@ -428,30 +370,28 @@ public:
         return *_root;
     }
 
-    bool ok() const override {
-        return (_relays) && (_index < _relays);
-    }
+    bool ok() const override { return (_relays) && (_index < _relays); }
 
-    const String& uniqueId() {
+    const String &uniqueId() {
         if (!_unique_id.length()) {
             _unique_id = _ctx.identifier() + '_' + F("light") + '_' + _index;
         }
         return _unique_id;
     }
 
-    const String& topic() override {
+    const String &topic() override {
         if (!_topic.length()) {
             _topic = _ctx.prefix();
-            _topic += F("/light/");     //Light not relay
+            _topic += F("/light/"); // Light not relay
             _topic += uniqueId();
             _topic += F("/config");
         }
         return _topic;
     }
 
-    const String& message() override {
+    const String &message() override {
         if (!_message.length()) {
-            auto& json = root();
+            auto &json = root();
             json[F("dev")] = _ctx.device();
             json[F("avty_t")] = _relay.availability.c_str();
             json[F("pl_avail")] = _relay.payload_available.c_str();
@@ -466,8 +406,8 @@ public:
             json[F("color_mode")] = "onoff";
             json[F("fx_cmd_t")] = mqttTopicSetter("pattern");
             json[F("fx_stat_t")] = mqttTopic("WS2811/pattern");
-            
-            JsonArray& effects = json.createNestedArray("fx_list");
+
+            JsonArray &effects = json.createNestedArray("fx_list");
             effects.add("auto");
             effects.add("blink");
             effects.add("double_chase");
@@ -497,18 +437,195 @@ public:
         return false;
     }
 
-private:
-    Context& _ctx;
-    JsonObject* _root { nullptr };
+  private:
+    Context &_ctx;
+    JsonObject *_root{nullptr};
 
     RelayContext _relay;
-    unsigned char _index { 0u };
-    unsigned char _relays { 0u };
+    unsigned char _index{0u};
+    unsigned char _relays{0u};
 
     String _unique_id;
     String _topic;
     String _message;
 };
+
+#endif
+
+#if WS2812_SUPPORT
+
+class WS2812Discovery : public Discovery {
+  public:
+    explicit WS2812Discovery(Context &ctx) : _ctx(ctx), _total(2) {}
+
+    JsonObject &root() {
+        return _ctx.makeObject();
+        // return *_root;
+    }
+
+    bool ok() const override { return _index < _total; }
+
+    const String &uniqueId() {
+        if (!_unique_id.length()) {
+            _unique_id = _ctx.identifier() + '_' + (_index == 0 ? F("light") : F("numleds"));
+        }
+        return _unique_id;
+    }
+
+    const String &topic() override {
+        if (!_topic.length()) {
+            _topic = _ctx.prefix() + (_index == 0 ? F("/light/") : F("/number/")) + uniqueId() + F("/config");
+        }
+        return _topic;
+    }
+
+    const String &message() override {
+        if (!_message.length()) {
+            auto &json = root();
+
+            json[F("dev")] = _ctx.device();
+            json[F("avty_t")] = mqttTopic(MQTT_TOPIC_STATUS);
+            json[F("pl_avail")] = quote(mqttPayloadStatus(true));
+            json[F("pl_not_avail")] = quote(mqttPayloadStatus(false));
+            json[F("uniq_id")] = uniqueId();
+
+            if (_index == 0) {
+                json[F("name")] = _ctx.name();
+                json[F("pl_on")] = quote(relayPayload(PayloadStatus::On).toString());
+                json[F("pl_off")] = quote(relayPayload(PayloadStatus::Off).toString());
+                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_LIGHT);
+                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_LIGHT);
+                json[F("ic")] = "mdi:led-strip-variant";
+
+                json[F("color_mode")] = "onoff";
+                json[F("fx_cmd_t")] = mqttTopicSetter(MQTT_TOPIC_PATTERN);
+                json[F("fx_stat_t")] = mqttTopic(MQTT_TOPIC_PATTERN);
+
+                WS2812Controller::buildDiscoveryFxList(json);
+            } else {
+                json[F("name")] = _ctx.name() + " numLEDs";
+                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_NUMLEDS);
+                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_NUMLEDS);
+                json[F("ic")] = "mdi:numeric";
+
+                json[F("min")] = 0;
+                json[F("max")] = MAX_NUM_LEDS;
+            }
+
+            json.printTo(_message);
+        }
+        return _message;
+    }
+
+    bool next() override {
+        if (_index < _total) {
+            auto current = _index;
+            ++_index;
+            if ((_index > current) && (_index < _total)) {
+                _unique_id = "";
+                _topic = "";
+                _message = "";
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+  private:
+    Context &_ctx;
+    String _unique_id;
+    String _topic;
+    String _message;
+    uint8_t _index{0u};
+    uint8_t _total{0u};
+};
+
+// class WS2812LEDCountDiscovery : public Discovery {
+//   public:
+//     explicit WS2812LEDCountDiscovery(Context &ctx) : _ctx(ctx) {}
+
+//     JsonObject &root() {
+//         if (!_root) {
+//             _root = &_ctx.makeObject();
+//         }
+
+//         return *_root;
+//     }
+
+//     bool ok() const override { return true; }
+
+//     const String &topic() override {
+//         if (!_topic.length()) {
+//             _topic = _ctx.prefix() + F("/sensor/") + uniqueId() + F("/config");
+//         }
+
+//         return _topic;
+//     }
+
+//     const String &message() override {
+//         if (!_message.length()) {
+//             auto &json = root();
+//             json[F("dev")] = _ctx.device();
+//             json[F("uniq_id")] = uniqueId();
+
+//             json[F("name")] = _ctx.name() + ' ' + name() + ' ' + localId();
+//             json[F("stat_t")] = mqttTopic("ledcount");
+
+//             json.printTo(_message);
+//         }
+
+//         return _message;
+//     }
+
+//     const String &name() {
+//         if (!_name.length()) {
+//             _name = magnitudeTypeTopic(_info.type);
+//         }
+
+//         return _name;
+//     }
+
+//     unsigned char localId() const { return _info.index; }
+
+//     const String &uniqueId() {
+//         if (!_unique_id.length()) {
+//             _unique_id = _ctx.identifier() + '_' + name() + '_' + localId();
+//         }
+
+//         return _unique_id;
+//     }
+
+//     bool next() override {
+//         if (_index < _magnitudes) {
+//             auto current = _index;
+//             ++_index;
+//             if ((_index > current) && (_index < _magnitudes)) {
+//                 _info = magnitudeInfo(_index);
+//                 _unique_id = "";
+//                 _name = "";
+//                 _topic = "";
+//                 _message = "";
+//                 return true;
+//             }
+//         }
+
+//         return false;
+//     }
+
+//   private:
+//     Context &_ctx;
+//     JsonObject *_root{nullptr};
+
+//     unsigned char _magnitudes{0u};
+//     unsigned char _index{0u};
+//     sensor::Info _info;
+
+//     String _unique_id;
+//     String _name;
+//     String _topic;
+//     String _message;
+// };
 
 #endif
 
@@ -533,12 +650,10 @@ private:
 static constexpr char Topic[] = MQTT_TOPIC_LIGHT_JSON;
 
 class LightDiscovery : public Discovery {
-public:
-    explicit LightDiscovery(Context& ctx) :
-        _ctx(ctx)
-    {}
+  public:
+    explicit LightDiscovery(Context &ctx) : _ctx(ctx) {}
 
-    JsonObject& root() {
+    JsonObject &root() {
         if (!_root) {
             _root = &_ctx.makeObject();
         }
@@ -546,15 +661,11 @@ public:
         return *_root;
     }
 
-    bool ok() const override {
-        return true;
-    }
+    bool ok() const override { return true; }
 
-    bool next() override {
-        return false;
-    }
+    bool next() override { return false; }
 
-    const String& uniqueId() {
+    const String &uniqueId() {
         if (!_unique_id.length()) {
             _unique_id = _ctx.identifier() + '_' + F("light");
         }
@@ -562,7 +673,7 @@ public:
         return _unique_id;
     }
 
-    const String& topic() override {
+    const String &topic() override {
         if (!_topic.length()) {
             _topic = _ctx.prefix();
             _topic += F("/light/");
@@ -573,9 +684,9 @@ public:
         return _topic;
     }
 
-    const String& message() override {
+    const String &message() override {
         if (!_message.length()) {
-            auto& json = root();
+            auto &json = root();
 
             json[F("schema")] = "json";
             json[F("uniq_id")] = uniqueId();
@@ -607,7 +718,7 @@ public:
             //   'cw' / 'ww' without 'rgb' are not supported; see 'brightness' or 'color_temp'
             json["brightness"] = true;
             json["color_mode"] = true;
-            JsonArray& modes = json.createNestedArray("supported_color_modes");
+            JsonArray &modes = json.createNestedArray("supported_color_modes");
 
             if (lightHasColor()) {
                 modes.add("hs");
@@ -641,16 +752,16 @@ public:
         return _message;
     }
 
-private:
-    Context& _ctx;
-    JsonObject* _root { nullptr };
+  private:
+    Context &_ctx;
+    JsonObject *_root{nullptr};
 
     String _unique_id;
     String _topic;
     String _message;
 };
 
-void heartbeat_rgb(JsonObject& root, JsonObject& color) {
+void heartbeat_rgb(JsonObject &root, JsonObject &color) {
     const auto rgb = lightRgb();
 
     color["r"] = rgb.red();
@@ -669,7 +780,7 @@ void heartbeat_rgb(JsonObject& root, JsonObject& color) {
     }
 }
 
-void heartbeat_hsv(JsonObject& root, JsonObject& color) {
+void heartbeat_hsv(JsonObject &root, JsonObject &color) {
     root["color_mode"] = "hs";
 
     const auto hsv = lightHsv();
@@ -682,7 +793,7 @@ bool heartbeat(heartbeat::Mask mask) {
     // or, find a way to detach masking from the system setting / don't use heartbeat timer
     if (mask & heartbeat::Report::Light) {
         DynamicJsonBuffer buffer(512);
-        JsonObject& root = buffer.createObject();
+        JsonObject &root = buffer.createObject();
 
         const auto state = lightState();
         root["state"] = state ? "ON" : "OFF";
@@ -690,7 +801,7 @@ bool heartbeat(heartbeat::Mask mask) {
         if (state) {
             root["brightness"] = lightBrightness();
             if (lightHasColor() && lightColor()) {
-                auto& color = root.createNestedObject("color");
+                auto &color = root.createNestedObject("color");
                 if (lightUseRGB()) {
                     heartbeat_rgb(root, color);
                 } else {
@@ -702,21 +813,17 @@ bool heartbeat(heartbeat::Mask mask) {
         String message;
         root.printTo(message);
 
-        mqttSendRaw(
-            mqttTopic(Topic).c_str(),
-            message.c_str(), false);
+        mqttSendRaw(mqttTopic(Topic).c_str(), message.c_str(), false);
     }
 
     return true;
 }
 
-void publishLightJson() {
-    heartbeat(static_cast<heartbeat::Mask>(heartbeat::Report::Light));
-}
+void publishLightJson() { heartbeat(static_cast<heartbeat::Mask>(heartbeat::Report::Light)); }
 
 void receiveLightJson(StringView payload) {
     DynamicJsonBuffer buffer(1024);
-    JsonObject& root = buffer.parseObject(payload.begin());
+    JsonObject &root = buffer.parseObject(payload.begin());
     if (!root.success()) {
         return;
     }
@@ -748,7 +855,7 @@ void receiveLightJson(StringView payload) {
 
     if (root.containsKey("color_temp")) {
         const auto mireds = root["color_temp"].as<long>();
-        lightTemperature(light::Mireds{ .value = mireds });
+        lightTemperature(light::Mireds{.value = mireds});
     }
 
     if (root.containsKey("brightness")) {
@@ -756,21 +863,11 @@ void receiveLightJson(StringView payload) {
     }
 
     if (lightHasColor() && root.containsKey("color")) {
-        JsonObject& color = root["color"];
-        if (color.containsKey("h")
-         && color.containsKey("s"))
-        {
-            lightHs(
-                color["h"].as<long>(),
-                color["s"].as<long>());
-        } else if (color.containsKey("r")
-                && color.containsKey("g")
-                && color.containsKey("b"))
-        {
-            lightRgb({
-                color["r"].as<long>(),
-                color["g"].as<long>(),
-                color["b"].as<long>()});
+        JsonObject &color = root["color"];
+        if (color.containsKey("h") && color.containsKey("s")) {
+            lightHs(color["h"].as<long>(), color["s"].as<long>());
+        } else if (color.containsKey("r") && color.containsKey("g") && color.containsKey("b")) {
+            lightRgb({color["r"].as<long>(), color["g"].as<long>(), color["b"].as<long>()});
         }
 
         if (color.containsKey("w")) {
@@ -790,13 +887,10 @@ void receiveLightJson(StringView payload) {
 #if SENSOR_SUPPORT
 
 class SensorDiscovery : public Discovery {
-public:
-    explicit SensorDiscovery(Context& ctx) :
-        _ctx(ctx),
-        _magnitudes(magnitudeCount())
-    {}
+  public:
+    explicit SensorDiscovery(Context &ctx) : _ctx(ctx), _magnitudes(magnitudeCount()) {}
 
-    JsonObject& root() {
+    JsonObject &root() {
         if (!_root) {
             _root = &_ctx.makeObject();
         }
@@ -804,11 +898,9 @@ public:
         return *_root;
     }
 
-    bool ok() const override {
-        return _index < _magnitudes;
-    }
+    bool ok() const override { return _index < _magnitudes; }
 
-    const String& topic() override {
+    const String &topic() override {
         if (!_topic.length()) {
             _topic = _ctx.prefix();
             _topic += F("/sensor/");
@@ -819,9 +911,9 @@ public:
         return _topic;
     }
 
-    const String& message() override {
+    const String &message() override {
         if (!_message.length()) {
-            auto& json = root();
+            auto &json = root();
             json[F("dev")] = _ctx.device();
             json[F("uniq_id")] = uniqueId();
 
@@ -835,7 +927,7 @@ public:
         return _message;
     }
 
-    const String& name() {
+    const String &name() {
         if (!_name.length()) {
             _name = magnitudeTypeTopic(_info.type);
         }
@@ -843,11 +935,9 @@ public:
         return _name;
     }
 
-    unsigned char localId() const {
-        return _info.index;
-    }
+    unsigned char localId() const { return _info.index; }
 
-    const String& uniqueId() {
+    const String &uniqueId() {
         if (!_unique_id.length()) {
             _unique_id = _ctx.identifier() + '_' + name() + '_' + localId();
         }
@@ -872,12 +962,12 @@ public:
         return false;
     }
 
-private:
-    Context& _ctx;
-    JsonObject* _root { nullptr };
+  private:
+    Context &_ctx;
+    JsonObject *_root{nullptr};
 
-    unsigned char _magnitudes { 0u };
-    unsigned char _index { 0u };
+    unsigned char _magnitudes{0u};
+    unsigned char _index{0u};
     sensor::Info _info;
 
     String _unique_id;
@@ -888,48 +978,34 @@ private:
 
 #endif
 
-DevicePtr make_device_ptr() {
-    return std::make_unique<Device>(
-        make_config_strings(),
-        make_build_strings());
-}
+DevicePtr make_device_ptr() { return std::make_unique<Device>(make_config_strings(), make_build_strings()); }
 
-Context make_context() {
-    return Context(make_device_ptr(), 2048);
-}
+Context make_context() { return Context(make_device_ptr(), 2048); }
 
 // Reworked discovery class. Try to send and wait for MQTT QoS 1 publish ACK to continue.
 // Topic and message are generated on demand and most of JSON payload is cached for re-use to save RAM.
 class DiscoveryTask {
-public:
+  public:
     using Entity = std::unique_ptr<Discovery>;
     using Entities = std::forward_list<Entity>;
 
-    static constexpr duration::Milliseconds WaitShort { 100 };
-    static constexpr duration::Milliseconds WaitLong { 1000 };
-    static constexpr int Retries { 5 };
+    static constexpr duration::Milliseconds WaitShort{100};
+    static constexpr duration::Milliseconds WaitLong{1000};
+    static constexpr int Retries{5};
 
     DiscoveryTask() = delete;
 
-    DiscoveryTask(const DiscoveryTask&) = delete;
-    DiscoveryTask& operator=(const DiscoveryTask&) = delete;
+    DiscoveryTask(const DiscoveryTask &) = delete;
+    DiscoveryTask &operator=(const DiscoveryTask &) = delete;
 
-    DiscoveryTask(DiscoveryTask&&) = delete;
-    DiscoveryTask& operator=(DiscoveryTask&&) = delete;
+    DiscoveryTask(DiscoveryTask &&) = delete;
+    DiscoveryTask &operator=(DiscoveryTask &&) = delete;
 
-    DiscoveryTask(Context ctx, bool enabled) :
-        _enabled(enabled),
-        _ctx(std::move(ctx))
-    {}
+    DiscoveryTask(Context ctx, bool enabled) : _enabled(enabled), _ctx(std::move(ctx)) {}
 
-    void add(Entity&& entity) {
-        _entities.push_front(std::move(entity));
-    }
+    void add(Entity &&entity) { _entities.push_front(std::move(entity)); }
 
-    template <typename T>
-    void add() {
-        _entities.push_front(std::make_unique<T>(_ctx));
-    }
+    template <typename T> void add() { _entities.push_front(std::make_unique<T>(_ctx)); }
 
     bool retry() {
         if (_retry < 0) {
@@ -939,37 +1015,30 @@ public:
         return (--_retry > 0);
     }
 
-    Context& context() {
-        return _ctx;
-    }
+    Context &context() { return _ctx; }
 
-    bool done() const {
-        return _entities.empty();
-    }
+    bool done() const { return _entities.empty(); }
 
     bool ok() const {
         if ((_retry > 0) && !_entities.empty()) {
-            auto& entity = _entities.front();
+            auto &entity = _entities.front();
             return entity->ok();
         }
 
         return false;
     }
 
-    template <typename T>
-    bool send(T&& action) {
+    template <typename T> bool send(T &&action) {
         while (!_entities.empty()) {
-            auto& entity = _entities.front();
+            auto &entity = _entities.front();
             if (!entity->ok()) {
                 _entities.pop_front();
                 _ctx.reset();
                 continue;
             }
 
-            const auto* topic = entity->topic().c_str();
-            const auto* msg = _enabled
-                ? entity->message().c_str()
-                : "";
+            const auto *topic = entity->topic().c_str();
+            const auto *msg = _enabled ? entity->message().c_str() : "";
 
             if (action(topic, msg)) {
                 if (!entity->next()) {
@@ -986,9 +1055,9 @@ public:
         return false;
     }
 
-private:
-    bool _enabled { false };
-    int _retry { Retries };
+  private:
+    bool _enabled{false};
+    int _retry{Retries};
 
     Entities _entities;
     Context _ctx;
@@ -1002,16 +1071,12 @@ namespace internal {
 using TaskPtr = std::shared_ptr<DiscoveryTask>;
 using FlagPtr = std::shared_ptr<bool>;
 
-bool retain { false };
-bool enabled { false };
+bool retain{false};
+bool enabled{false};
 
-enum class State {
-    Initial,
-    Pending,
-    Sent
-};
+enum class State { Initial, Pending, Sent };
 
-State state { State::Initial };
+State state{State::Initial};
 timer::SystemTimer timer;
 
 void send(TaskPtr ptr, FlagPtr flag_ptr);
@@ -1028,29 +1093,21 @@ void stop(bool done) {
 }
 
 void schedule(duration::Milliseconds wait, TaskPtr ptr, FlagPtr flag_ptr) {
-    timer.schedule_once(
-        wait,
-        [ptr, flag_ptr]() {
-            send(ptr, flag_ptr);
-        });
+    timer.schedule_once(wait, [ptr, flag_ptr]() { send(ptr, flag_ptr); });
 }
 
-void schedule(TaskPtr ptr, FlagPtr flag_ptr) {
-    schedule(DiscoveryTask::WaitShort, ptr, flag_ptr);
-}
+void schedule(TaskPtr ptr, FlagPtr flag_ptr) { schedule(DiscoveryTask::WaitShort, ptr, flag_ptr); }
 
-void schedule(TaskPtr ptr) {
-    schedule(DiscoveryTask::WaitShort, ptr, std::make_shared<bool>(true));
-}
+void schedule(TaskPtr ptr) { schedule(DiscoveryTask::WaitShort, ptr, std::make_shared<bool>(true)); }
 
 void send(TaskPtr ptr, FlagPtr flag_ptr) {
-    auto& task = *ptr;
+    auto &task = *ptr;
     if (!mqttConnected() || task.done()) {
         stop(true);
         return;
     }
 
-    auto& flag = *flag_ptr;
+    auto &flag = *flag_ptr;
     if (!flag) {
         if (task.retry()) {
             schedule(ptr, flag_ptr);
@@ -1060,8 +1117,8 @@ void send(TaskPtr ptr, FlagPtr flag_ptr) {
         return;
     }
 
-    uint16_t pid { 0u };
-    auto res = task.send([&](const char* topic, const char* message) {
+    uint16_t pid{0u};
+    auto res = task.send([&](const char *topic, const char *message) {
         pid = ::mqttSendRaw(topic, message, internal::retain, 1);
         return pid > 0;
     });
@@ -1075,15 +1132,11 @@ void send(TaskPtr ptr, FlagPtr flag_ptr) {
 
     if (res) {
         flag = false;
-        mqttOnPublish(pid, [flag_ptr]() {
-            (*flag_ptr) = true;
-        });
+        mqttOnPublish(pid, [flag_ptr]() { (*flag_ptr) = true; });
     }
 #endif
 
-    auto wait = res
-        ? DiscoveryTask::WaitShort
-        : DiscoveryTask::WaitLong;
+    auto wait = res ? DiscoveryTask::WaitShort : DiscoveryTask::WaitLong;
 
     if (res || task.retry()) {
         schedule(wait, ptr, flag_ptr);
@@ -1100,20 +1153,18 @@ void publishDiscovery() {
         return;
     }
 
-    auto task = std::make_shared<DiscoveryTask>(
-        make_context(), internal::enabled);
+    auto task = std::make_shared<DiscoveryTask>(make_context(), internal::enabled);
 
 #if LIGHT_PROVIDER != LIGHT_PROVIDER_NONE
     task->add<LightDiscovery>();
 #endif
 
-
 #if WS2811_SUPPORT
     task->add<WS2811Discovery>();
-#else
-    #if RELAY_SUPPORT
-        task->add<RelayDiscovery>();
-    #endif
+#elif WS2812_SUPPORT
+    task->add<WS2812Discovery>();
+#elif RELAY_SUPPORT
+    task->add<RelayDiscovery>();
 #endif
 
 #if SENSOR_SUPPORT
@@ -1174,19 +1225,15 @@ namespace web {
 
 PROGMEM_STRING(Prefix, "ha");
 
-void onVisible(JsonObject& root) {
-    wsPayloadModule(root, Prefix);
-}
+void onVisible(JsonObject &root) { wsPayloadModule(root, Prefix); }
 
-void onConnected(JsonObject& root) {
+void onConnected(JsonObject &root) {
     root[FPSTR(settings::keys::Prefix)] = settings::prefix();
     root[FPSTR(settings::keys::Enabled)] = settings::enabled();
     root[FPSTR(settings::keys::Retain)] = settings::retain();
 }
 
-bool onKeyCheck(StringView key, const JsonVariant& value) {
-    return espurna::settings::query::samePrefix(key, Prefix);
-}
+bool onKeyCheck(StringView key, const JsonVariant &value) { return espurna::settings::query::samePrefix(key, Prefix); }
 
 #endif
 
@@ -1197,29 +1244,24 @@ namespace terminal {
 
 PROGMEM_STRING(Send, "HA.SEND");
 
-void send(::terminal::CommandContext&& ctx) {
+void send(::terminal::CommandContext &&ctx) {
     internal::state = internal::State::Pending;
     publishDiscovery();
     terminalOK(ctx);
 }
 
-static constexpr ::terminal::Command Commands[] PROGMEM {
+static constexpr ::terminal::Command Commands[] PROGMEM{
     {Send, send},
 };
 
-void setup() {
-    espurna::terminal::add(Commands);
-}
+void setup() { espurna::terminal::add(Commands); }
 
 } // namespace terminal
 #endif
 
 void setup() {
 #if WEB_SUPPORT
-    wsRegister()
-        .onVisible(web::onVisible)
-        .onConnected(web::onConnected)
-        .onKeyCheck(web::onKeyCheck);
+    wsRegister().onVisible(web::onVisible).onConnected(web::onConnected).onKeyCheck(web::onKeyCheck);
 #endif
 
 #if LIGHT_PROVIDER != LIGHT_PROVIDER_NONE
@@ -1246,8 +1288,6 @@ void setup() {
 // - have mqtt reliably return the correct status & command payloads when it is disabled
 //   (yet? needs reworked configuration section or making functions read settings directly)
 
-void haSetup() {
-    espurna::homeassistant::setup();
-}
+void haSetup() { espurna::homeassistant::setup(); }
 
 #endif // HOMEASSISTANT_SUPPORT

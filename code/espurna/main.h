@@ -64,3 +64,4 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "prometheus.h"
 #include "pwm.h"
 #include "ws2811.h"
+#include "ws2812.h"

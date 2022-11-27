@@ -225,6 +225,10 @@ alignas(4) static constexpr char Modules[] PROGMEM_STRING_ATTR =
 #if WS2811_SUPPORT
     "WS2811 "
 #endif
+#if WS2812_SUPPORT
+    "WS2812 "
+#endif
+
 #if WEB_SUPPORT
 #if WEBUI_IMAGE == WEBUI_IMAGE_SMALL
     "WEB_SMALL "

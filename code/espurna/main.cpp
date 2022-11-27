@@ -371,6 +371,10 @@ void setup() {
     #if WS2811_SUPPORT
         ws2811Setup();
     #endif
+
+    #if WS2812_SUPPORT
+        WS2812Controller::setup();
+    #endif
     
     // Update `cfg` version
     migrate();
