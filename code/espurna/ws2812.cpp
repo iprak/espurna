@@ -195,7 +195,7 @@ void mqttSendNumLEDs() { mqttSend(MQTT_TOPIC_WS2812_NUMLEDS, String(numLEDs).c_s
 void mqttSendPlaylist() { mqttSend(MQTT_TOPIC_WS2812_PLAYLIST, playlistEnabled ? "1" : "0"); }
 void mqttSendPlayduration() { mqttSend(MQTT_TOPIC_WS2812_PLAYDURATION, String(playDuration).c_str()); }
 
-void initialize(uint8_t countValue, bool onValue, uint8_t patternValue, bool playlistValue, uint8_t playdurationValue) {
+void initialize(uint8_t countValue, bool onValue, uint8_t patternValue) {
     bool needToSaveSettings = false;
 
     totalPatterns = ARRAY_SIZE(Patterns::patternNames);
@@ -217,19 +217,6 @@ void initialize(uint8_t countValue, bool onValue, uint8_t patternValue, bool pla
     if (currentPattern != patternValue) {
         currentPattern = patternValue;
         setSetting(SETTING_PATTERN, currentPattern);
-        needToSaveSettings = true;
-    }
-
-    if (playlistEnabled != playlistValue) {
-        playlistEnabled = playlistValue;
-        setSetting(SETTING_PLAYLIST, playlistEnabled);
-        needToSaveSettings = true;
-    }
-
-    playdurationValue = constrain(playdurationValue, 0, 100);
-    if (playDuration != playdurationValue) {
-        playDuration = playdurationValue;
-        setSetting(SETTING_PLAYDURATION, playDuration);
         needToSaveSettings = true;
     }
 
@@ -394,7 +381,7 @@ static void onNumLEDs(::terminal::CommandContext &&ctx) {
         if (result.ok) {
             uint8_t newCount = constrain(result.value, 0, MAX_NUM_LEDS);
             if (newCount != numLEDs) {
-                initialize(newCount, lightOn, currentPattern, playlistEnabled, playDuration);
+                initialize(newCount, lightOn, currentPattern);
                 mqttSendNumLEDs();
             }
 
@@ -485,19 +472,18 @@ void mqttCallback(uint type, espurna::StringView topic, espurna::StringView payl
             enablePlaylist(payload.equals("1"));
         } else if (t.equals(MQTT_TOPIC_WS2812_PATTERN)) {
             setPatternByName(payload.c_str());
-        } else if (t.equals(MQTT_TOPIC_WS2812_NUMLEDS)) {
+        } else {
             const auto result = parseUnsigned(payload, 10);
             if (result.ok) {
-                uint8_t newCount = constrain(result.value, 0, MAX_NUM_LEDS);
-                if (newCount != numLEDs) {
-                    initialize(newCount, lightOn, currentPattern, playlistEnabled, playDuration);
-                    mqttSendNumLEDs();
+                if (t.equals(MQTT_TOPIC_WS2812_NUMLEDS)) {
+                    uint8_t newCount = constrain(result.value, 0, MAX_NUM_LEDS);
+                    if (newCount != numLEDs) {
+                        initialize(newCount, lightOn, currentPattern);
+                        mqttSendNumLEDs();
+                    }
+                } else if (t.equals(MQTT_TOPIC_WS2812_PLAYDURATION)) {
+                    setPlayDuration(result.value);
                 }
-            }
-        } else if (t.equals(MQTT_TOPIC_WS2812_PLAYDURATION)) {
-            const auto result = parseUnsigned(payload, 10);
-            if (result.ok) {
-                setPlayDuration(result.value);
             }
         }
     }
@@ -515,9 +501,12 @@ void setup() {
     espurna::terminal::add(Commands);
     espurnaRegisterLoop(loop);
 
+    playlistEnabled = getSetting(SETTING_PLAYLIST, DEFAULT_PLAYLIST);
+    playDuration =
+        constrain(getSetting(SETTING_PLAYDURATION, DEFAULT_PLAYDURATION), MIN_PLAY_DURATION, MAX_PLAY_DURATION);
+
     initialize(getSetting(SETTING_NUM_LEDS, DEFAULT_NUM_LEDS), getSetting(SETTING_ON, DEFAULT_ON_STATE),
-               getSetting(SETTING_PATTERN, DEFAULT_PATTERN), getSetting(SETTING_PLAYLIST, DEFAULT_PLAYLIST),
-               getSetting(SETTING_PLAYDURATION, DEFAULT_PLAYDURATION));
+               getSetting(SETTING_PATTERN, DEFAULT_PATTERN));
 }
 } // namespace WS2812Controller
 
