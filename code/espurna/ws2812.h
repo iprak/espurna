@@ -12,6 +12,10 @@ Copyright (C) 2020 by Indu Prakash
 
 #include <ArduinoJson.h>
 
+#if !defined(WS2812_DATA_PIN)
+#error "No data pin (WS2812_DATA_PIN) defined."
+#endif
+
 #define MAX_NUM_LEDS 100
 
 #define MIN_PLAY_DURATION       5
