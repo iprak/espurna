@@ -210,6 +210,8 @@
     #define DEVICE              "WS2812"
 
     #define WS2812_DATA_PIN        2   //D4
+    #define LED1_PIN               16   //Wemos 2nd onboard LED
+    #define LED1_MODE              LED_MODE_WIFI
 
     #define RELAY_SUPPORT           1
     #define ALEXA_SUPPORT           0
@@ -228,6 +230,7 @@
     #define MDNS_SERVER_SUPPORT     0
     #define DEBUG_TELNET_SUPPORT    0
     #define WS2812_SUPPORT          1
+    #define LED_SUPPORT             1
 
     #define HEARTBEAT_REPORT_SSID       0
     #define HEARTBEAT_REPORT_MAC        0
