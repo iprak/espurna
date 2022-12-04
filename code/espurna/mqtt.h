@@ -58,7 +58,7 @@ Updated secure client support by Niek van der Maas < mail at niekvandermaas dot 
 #define MQTT_TOPIC_WS2812_PATTERN   "pattern"
 #define MQTT_TOPIC_WS2812_NUMLEDS   "ledcount"
 #define MQTT_TOPIC_WS2812_PLAYLIST  "playlist"
-#define MQTT_TOPIC_WS2812_PLAYDURATION  "playduration"
+#define MQTT_TOPIC_WS2812_PATTERNDURATION  "patternduration"
 
 void mqttHeartbeat(espurna::heartbeat::Callback);
 

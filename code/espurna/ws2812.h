@@ -18,8 +18,8 @@ Copyright (C) 2020 by Indu Prakash
 
 #define MAX_NUM_LEDS 100
 
-#define MIN_PLAY_DURATION       5
-#define MAX_PLAY_DURATION       60
+#define MIN_PATTERN_DURATION       5
+#define MAX_PATTERN_DURATION       60
 
 namespace WS2812Controller {
 

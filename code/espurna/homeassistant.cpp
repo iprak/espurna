@@ -457,7 +457,7 @@ class WS2811Discovery : public Discovery {
 #define DISCOVERY_INDEX_LIGHT 0
 #define DISCOVERY_INDEX_NUMLEDS 1
 #define DISCOVERY_INDEX_PLAYLIST 2
-#define DISCOVERY_INDEX_PLAYDURATION 3
+#define DISCOVERY_INDEX_PATTERNDURATION 3
 
 class WS2812Discovery : public Discovery {
   public:
@@ -475,8 +475,8 @@ class WS2812Discovery : public Discovery {
                 _unique_id = _ctx.identifier() + '_' + F("numleds");
             } else if (_index == DISCOVERY_INDEX_PLAYLIST) {
                 _unique_id = _ctx.identifier() + '_' + F("playlist");
-            } else if (_index == DISCOVERY_INDEX_PLAYDURATION) {
-                _unique_id = _ctx.identifier() + '_' + F("playduration");
+            } else if (_index == DISCOVERY_INDEX_PATTERNDURATION) {
+                _unique_id = _ctx.identifier() + '_' + F("patternduration");
             }
         }
         return _unique_id;
@@ -491,7 +491,7 @@ class WS2812Discovery : public Discovery {
                 _topic = _ctx.prefix() + F("/number/") + uniqueId() + F("/config");
             } else if (_index == DISCOVERY_INDEX_PLAYLIST) {
                 _topic = _ctx.prefix() + F("/switch/") + uniqueId() + F("/config");
-            } else if (_index == DISCOVERY_INDEX_PLAYDURATION) {
+            } else if (_index == DISCOVERY_INDEX_PATTERNDURATION) {
                 _topic = _ctx.prefix() + F("/number/") + uniqueId() + F("/config");
             }
         }
@@ -535,13 +535,13 @@ class WS2812Discovery : public Discovery {
                 json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_PLAYLIST);
                 json[F("pl_on")] = quote(relayPayload(PayloadStatus::On).toString());
                 json[F("pl_off")] = quote(relayPayload(PayloadStatus::Off).toString());
-            } else if (_index == DISCOVERY_INDEX_PLAYDURATION) {
-                json[F("name")] = _ctx.name() + F(" playDuration");
+            } else if (_index == DISCOVERY_INDEX_PATTERNDURATION) {
+                json[F("name")] = _ctx.name() + F(" patternDuration");
                 json[F("ic")] = F("mdi:timer-play");
-                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_PLAYDURATION);
-                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_PLAYDURATION);
-                json[F("min")] = MIN_PLAY_DURATION;
-                json[F("max")] = MAX_PLAY_DURATION;
+                json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_PATTERNDURATION);
+                json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_PATTERNDURATION);
+                json[F("min")] = MIN_PATTERN_DURATION;
+                json[F("max")] = MAX_PATTERN_DURATION;
             }
 
             json.printTo(_message);
