@@ -16,7 +16,7 @@ Copyright (C) 2020 by Indu Prakash
 #error "No data pin (WS2812_DATA_PIN) defined."
 #endif
 
-#define MAX_NUM_LEDS 100
+#define MAX_NUM_LEDS 500
 
 #define MIN_PATTERN_DURATION       5
 #define MAX_PATTERN_DURATION       60

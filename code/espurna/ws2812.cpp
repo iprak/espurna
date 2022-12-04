@@ -100,7 +100,6 @@ const PatternList patternFns = {blink,       dropFill, outline,       propeller,
 const char *patternNames[] = {"blink",       "dropFill", "outline",       "propeller",      "rainbow",
                               "rainbowLoop", "random",   "redBlueBounce", "rotatingRedBlue"};
 
-
 /// @brief Clear all LEDs
 void clearAll() { FastLED.clear(true); }
 
@@ -133,7 +132,7 @@ void rainbow(bool firstTime) {
         current_pattern_hue = 0;
     }
 
-    if ((current_time - pattern_last_frame_time) >= 15) {
+    if ((current_time - pattern_last_frame_time) >= 20) {
         pattern_last_frame_time = current_time;
 
         current_pattern_hue++;
@@ -147,7 +146,7 @@ void rainbowLoop(bool firstTime) {
         current_pattern_hue = 0;
     }
 
-    if ((current_time - pattern_last_frame_time) >= 25) {
+    if ((current_time - pattern_last_frame_time) >= 20) {
         pattern_last_frame_time = current_time;
 
         current_pattern_led_index++;
@@ -165,7 +164,7 @@ void rainbowLoop(bool firstTime) {
 }
 
 void random(bool firstTime) {
-    if ((current_time - pattern_last_frame_time) >= 25) {
+    if ((current_time - pattern_last_frame_time) >= 20) {
         pattern_last_frame_time = current_time;
 
         leds[::random(0, numLEDs)] = CHSV(::random(0, 255), 255, 255);
@@ -176,7 +175,7 @@ void random(bool firstTime) {
 void redBlueBounce(bool firstTime) {
     static bool bouncedRight = false;
 
-    if ((current_time - pattern_last_frame_time) >= 25) {
+    if ((current_time - pattern_last_frame_time) >= 20) {
         pattern_last_frame_time = current_time;
 
         if (!bouncedRight) {
@@ -194,13 +193,13 @@ void redBlueBounce(bool firstTime) {
         }
         for (uint8_t i = 0; i < numLEDs; i++) {
             if (current_pattern_led_index == i) {
-                leds[i] = CHSV(HUE_BLUE, 255, 255);
+                leds[i] = CRGB::Blue;
             } else {
-                leds[i] = CHSV(0, 0, 0);
+                leds[i] = CRGB::Black;
             }
 
             uint8_t otherIndex = getOppositeIndex(current_pattern_led_index);
-            leds[otherIndex] = CHSV(HUE_RED, 255, 255);
+            leds[otherIndex] = CRGB::Red;
         }
 
         FastLED.show();
@@ -215,15 +214,15 @@ void rotatingRedBlue(bool firstTime) {
         if (current_pattern_led_index >= numLEDs) {
             current_pattern_led_index = 0;
         }
-        leds[current_pattern_led_index] = CHSV(HUE_RED, 255, 255);
-        leds[getOppositeIndex(current_pattern_led_index)] = CHSV(HUE_BLUE, 255, 255);
+        leds[current_pattern_led_index] = CRGB::Red;
+        leds[getOppositeIndex(current_pattern_led_index)] = CRGB::Blue;
 
         FastLED.show();
     }
 }
 
 void propeller(bool firstTime) {
-    if ((current_time - pattern_last_frame_time) >= 25) {
+    if ((current_time - pattern_last_frame_time) >= 20) {
         pattern_last_frame_time = current_time;
 
         current_pattern_led_index++;
@@ -234,9 +233,9 @@ void propeller(bool firstTime) {
             int j0 = (current_pattern_led_index + i + numLEDs - N12) % numLEDs;
             int j1 = (j0 + N3) % numLEDs;
             int j2 = (j1 + N3) % numLEDs;
-            leds[j0] = CHSV(HUE_RED, 255, 255);
-            leds[j1] = CHSV(HUE_GREEN, 255, 255);
-            leds[j2] = CHSV(HUE_BLUE, 255, 255);
+            leds[j0] = CRGB::Red;
+            leds[j1] = CRGB::Green;
+            leds[j2] = CRGB::Blue;
         }
 
         FastLED.show();
@@ -264,30 +263,31 @@ void blink(bool firstTime) {
 /// @brief Start filling from the middle to the ends. Restart with a new color.
 /// @param firstTime
 void dropFill(bool firstTime) {
-    static uint8_t left = 0;
-    static uint8_t right = 0;
+    static uint8_t offset;
+    static uint8_t center;
     bool show = true;
 
     if (firstTime) {
-        left = right = numLEDs / 2;
+        pattern_last_frame_time = current_time;
+        offset = 0;
+        center = numLEDs / 2;
         fillArray(CRGB::Black);
-        leds[left] = getNextColor();
-    } else if ((current_time - pattern_last_frame_time) >= 100) {
-        left--;
-        right++;
+        leds[center] = getNextColor();
+    } else if ((current_time - pattern_last_frame_time) >= 20) {
+        offset++;
 
-        if (left < 0 || right > (numLEDs - 1)) {                    // We have reached the edge
+        if ((offset >= center) || (center + offset >= numLEDs)) {   // We have reached the edge
             if ((current_time - pattern_last_frame_time) >= 1500) { // Wait a bit longer upon completion
-                left = right = numLEDs / 2;
                 pattern_last_frame_time = current_time;
+                offset = 0;
                 fillArray(CRGB::Black);
-                leds[left] = getNextColor();
+                leds[center] = getNextColor();
             } else {
                 show = false;
             }
         } else {
-            leds[left] = leds[left + 1]; // Copy the color
-            leds[right] = leds[right - 1];
+            leds[center - offset] = leds[center]; // Copy the color
+            leds[center + offset] = leds[center]; // Copy the color
             pattern_last_frame_time = current_time;
         }
 
@@ -356,6 +356,10 @@ void initialize(uint8_t countValue, bool onValue, uint8_t patternValue) {
         numLEDs = countValue;
         setSetting(SETTING_NUM_LEDS, numLEDs);
         needToSaveSettings = true;
+
+        // Change in numLEDs require some static to be reevaluted. Treat this as if pattern was changed.
+        currentPatternFirstCall = true;
+        pattern_last_frame_time = 0; // Reset pattern frame time
     }
 
     patternValue = constrain(patternValue, 0, totalPatterns - 1);
@@ -369,14 +373,13 @@ void initialize(uint8_t countValue, bool onValue, uint8_t patternValue) {
         saveSettings();
     }
 
-    FastLED.addLeds<WS2812, WS2812_DATA_PIN, RGB>(leds, numLEDs);
+    // Clear all (max) leds
+    FastLED.addLeds<WS2812, WS2812_DATA_PIN, RGB>(leds, MAX_NUM_LEDS);
+    Patterns::clearAll();
+    FastLED.show();
 
-    if (lightOn) {
-        FastLED.setBrightness(DEFAULT_BRIGHTNESS);
-        FastLED.show();
-    } else {
-        Patterns::clearAll(); // All off
-    }
+    FastLED.addLeds<WS2812, WS2812_DATA_PIN, RGB>(leds, numLEDs);
+    FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 
     DEBUG_MSG_P(PSTR("[WS2812] initialized numLEDS=%d, totalPatterns=%d, on=%d, currentPattern=%d\n"), numLEDs,
                 totalPatterns, lightOn, currentPatternIndex);
@@ -659,8 +662,6 @@ void setup() {
     playlistEnabled = getSetting(SETTING_PLAYLIST, DEFAULT_PLAYLIST);
     patternDuration = constrain(getSetting(SETTING_PATTERNDURATION, DEFAULT_PATTERN_DURATION), MIN_PATTERN_DURATION,
                                 MAX_PATTERN_DURATION);
-
-    FastLED.showColor(CRGB::Orange); // Start with Orange fill
 
     initialize(getSetting(SETTING_NUM_LEDS, DEFAULT_NUM_LEDS), getSetting(SETTING_ON, DEFAULT_ON_STATE),
                getSetting(SETTING_PATTERN, DEFAULT_PATTERN));
