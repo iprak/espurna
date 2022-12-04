@@ -46,21 +46,30 @@ PROGMEM_STRING(SETTING_PATTERNDURATION, "ws2812.pd");
 
 #define DEBUG_LOG_PERIOD 15000
 
+/// @brief Total patters
 uint8_t totalPatterns;
+/// @brief Current pattern
 uint8_t currentPatternIndex = DEFAULT_PATTERN;
+/// @brief First display call for a pattern
 bool currentPatternFirstCall;
+/// @brief Totla number of LEDs
 uint8_t numLEDs = 0;
+/// @brief LED array
 CRGB leds[MAX_NUM_LEDS];
+/// @brief LEDs on
 bool lightOn;
+/// @brief Pattern playlist enabled
 bool playlistEnabled;
-uint8_t patternDuration; // seconds
-
+/// @brief Pattern display duration in playlist mode (seconds)
+uint8_t patternDuration;
+/// @brief Our timer
 espurna::timer::SystemTimer _timer;
-
-unsigned long last_msg_time = 0;
+/// @brief Pattern start time
 unsigned long pattern_start_time = 0;
+/// @brief Current loop time
 unsigned long current_time = 0;
-bool showLoopMessage = false;
+//unsigned long last_msg_time = 0;
+//bool showLoopMessage = false;
 
 namespace Patterns {
 
@@ -336,7 +345,7 @@ void initialize(uint8_t countValue, bool onValue, uint8_t patternValue) {
 }
 
 void loop() {
-    if (!lightOn || Update.isRunning()) //! wifiConnected()
+    if (!lightOn || Update.isRunning() || numLEDs == 0)
         return;
 
     current_time = millis();
@@ -352,11 +361,11 @@ void loop() {
         pattern_start_time = 0;
     }
 
-    if (!showLoopMessage || (abs(current_time - last_msg_time) > DEBUG_LOG_PERIOD)) {
-        showLoopMessage = true;
-        last_msg_time = current_time;
-        // DEBUG_MSG_P(PSTR("[WS2812] %s\n"), getPatternName(currentPatternIndex));
-    }
+    // if (!showLoopMessage || (abs(current_time - last_msg_time) > DEBUG_LOG_PERIOD)) {
+    //     showLoopMessage = true;
+    //     last_msg_time = current_time;
+    //      DEBUG_MSG_P(PSTR("[WS2812] %s\n"), getPatternName(currentPatternIndex));
+    // }
 
     if (currentPatternIndex >= 0 && currentPatternIndex < totalPatterns) {
         auto patternFx = Patterns::patternFns[currentPatternIndex];
@@ -608,6 +617,8 @@ void setup() {
     playlistEnabled = getSetting(SETTING_PLAYLIST, DEFAULT_PLAYLIST);
     patternDuration = constrain(getSetting(SETTING_PATTERNDURATION, DEFAULT_PATTERN_DURATION), MIN_PATTERN_DURATION,
                                 MAX_PATTERN_DURATION);
+
+    FastLED.showColor(CRGB::Orange);    //Start with Orange fill
 
     initialize(getSetting(SETTING_NUM_LEDS, DEFAULT_NUM_LEDS), getSetting(SETTING_ON, DEFAULT_ON_STATE),
                getSetting(SETTING_PATTERN, DEFAULT_PATTERN));
