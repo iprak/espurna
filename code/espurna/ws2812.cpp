@@ -68,15 +68,21 @@ espurna::timer::SystemTimer _timer;
 unsigned long pattern_start_time = 0;
 /// @brief Current loop time
 unsigned long current_time = 0;
-//unsigned long last_msg_time = 0;
-//bool showLoopMessage = false;
+// unsigned long last_msg_time = 0;
+// bool showLoopMessage = false;
 
+/// @brief Last frame render time for a pattern
+unsigned long pattern_last_frame_time;
+
+void nextPattern();
+
+/// @brief Pattern generation functions
 namespace Patterns {
 
 typedef void (*PatternList[])(bool);
 
-uint8_t ihue = 0;
-uint8_t index = 0;
+uint8_t current_pattern_hue = 0;
+uint8_t current_pattern_led_index = 0;
 
 void blink(bool);
 void dropFill(bool);
@@ -94,99 +100,17 @@ const PatternList patternFns = {blink,       dropFill, outline,       propeller,
 const char *patternNames[] = {"blink",       "dropFill", "outline",       "propeller",      "rainbow",
                               "rainbowLoop", "random",   "redBlueBounce", "rotatingRedBlue"};
 
+
+/// @brief Clear all LEDs
 void clearAll() { FastLED.clear(true); }
 
-void showDelay(unsigned long ms) {
-    FastLED.show();
-    delay(ms);
-}
-
-uint8_t antipodal_index(uint8_t i) {
+uint8_t getOppositeIndex(uint8_t i) {
     uint8_t topIndex = numLEDs / 2;
     uint8_t invertIndex = i + topIndex;
     if (i >= topIndex) {
         invertIndex = (i + topIndex) % numLEDs;
     }
     return invertIndex;
-}
-
-void rainbow(bool firstTime) {
-    ihue++;
-    fill_rainbow(leds, numLEDs, ihue);
-    showDelay(10);
-}
-
-void rainbowLoop(bool firstTime) {
-    index++;
-    ihue = ihue + 10;
-    if (index >= numLEDs) {
-        index = 0;
-    }
-    if (ihue > 255) {
-        ihue = 0;
-    }
-    leds[index] = CHSV(ihue, 255, 255);
-    showDelay(20);
-}
-
-void random(bool firstTime) {
-    leds[::random(0, numLEDs)] = CHSV(::random(0, 255), 255, 255);
-    showDelay(20);
-}
-
-void redBlueBounce(bool firstTime) {
-    static bool bouncedRight = false;
-
-    if (!bouncedRight) {
-        index++;
-        if (index == numLEDs) {
-            bouncedRight = true;
-            index--;
-        }
-    }
-    if (bouncedRight) {
-        index--;
-        if (index == 0) {
-            bouncedRight = false;
-        }
-    }
-    for (uint8_t i = 0; i < numLEDs; i++) {
-        if (i == index) {
-            leds[i] = CHSV(HUE_BLUE, 255, 255);
-        } else {
-            leds[i] = CHSV(0, 0, 0);
-        }
-
-        uint8_t otherIndex = antipodal_index(index);
-        leds[otherIndex] = CHSV(HUE_RED, 255, 255);
-    }
-    showDelay(20);
-}
-
-void rotatingRedBlue(bool firstTime) {
-    index++;
-    if (index >= numLEDs) {
-        index = 0;
-    }
-    leds[index] = CHSV(HUE_RED, 255, 255);
-    leds[antipodal_index(index)] = CHSV(HUE_BLUE, 255, 255);
-    showDelay(20);
-}
-
-void propeller(bool firstTime) {
-    index++;
-    int N3 = int(numLEDs / 3);
-    int N12 = int(numLEDs / 12);
-
-    for (int i = 0; i < N3; i++) {
-        int j0 = (index + i + numLEDs - N12) % numLEDs;
-        int j1 = (j0 + N3) % numLEDs;
-        int j2 = (j1 + N3) % numLEDs;
-        leds[j0] = CHSV(HUE_RED, 255, 255);
-        leds[j1] = CHSV(HUE_GREEN, 255, 255);
-        leds[j2] = CHSV(HUE_BLUE, 255, 255);
-    }
-    showDelay(25);
 }
 
 CRGB getNextColor() {
@@ -198,16 +122,135 @@ CRGB getNextColor() {
     return colors[color_index];
 }
 
+void fillArray(CRGB color) {
+    for (uint8_t i = 0; i < numLEDs; i++) {
+        leds[i] = color;
+    }
+}
+
+void rainbow(bool firstTime) {
+    if (firstTime) {
+        current_pattern_hue = 0;
+    }
+
+    if ((current_time - pattern_last_frame_time) >= 15) {
+        pattern_last_frame_time = current_time;
+
+        current_pattern_hue++;
+        fill_rainbow(leds, numLEDs, current_pattern_hue);
+        FastLED.show();
+    }
+}
+
+void rainbowLoop(bool firstTime) {
+    if (firstTime) {
+        current_pattern_hue = 0;
+    }
+
+    if ((current_time - pattern_last_frame_time) >= 25) {
+        pattern_last_frame_time = current_time;
+
+        current_pattern_led_index++;
+        current_pattern_hue += 10;
+        if (current_pattern_led_index >= numLEDs) {
+            current_pattern_led_index = 0;
+        }
+        if (current_pattern_hue > 255) {
+            current_pattern_hue = 0;
+        }
+        leds[current_pattern_led_index] = CHSV(current_pattern_hue, 255, 255);
+
+        FastLED.show();
+    }
+}
+
+void random(bool firstTime) {
+    if ((current_time - pattern_last_frame_time) >= 25) {
+        pattern_last_frame_time = current_time;
+
+        leds[::random(0, numLEDs)] = CHSV(::random(0, 255), 255, 255);
+        FastLED.show();
+    }
+}
+
+void redBlueBounce(bool firstTime) {
+    static bool bouncedRight = false;
+
+    if ((current_time - pattern_last_frame_time) >= 25) {
+        pattern_last_frame_time = current_time;
+
+        if (!bouncedRight) {
+            current_pattern_led_index++;
+            if (current_pattern_led_index == numLEDs) {
+                bouncedRight = true;
+                current_pattern_led_index--;
+            }
+        }
+        if (bouncedRight) {
+            current_pattern_led_index--;
+            if (current_pattern_led_index == 0) {
+                bouncedRight = false;
+            }
+        }
+        for (uint8_t i = 0; i < numLEDs; i++) {
+            if (current_pattern_led_index == i) {
+                leds[i] = CHSV(HUE_BLUE, 255, 255);
+            } else {
+                leds[i] = CHSV(0, 0, 0);
+            }
+
+            uint8_t otherIndex = getOppositeIndex(current_pattern_led_index);
+            leds[otherIndex] = CHSV(HUE_RED, 255, 255);
+        }
+
+        FastLED.show();
+    }
+}
+
+void rotatingRedBlue(bool firstTime) {
+    if ((current_time - pattern_last_frame_time) >= 25) {
+        pattern_last_frame_time = current_time;
+
+        current_pattern_led_index++;
+        if (current_pattern_led_index >= numLEDs) {
+            current_pattern_led_index = 0;
+        }
+        leds[current_pattern_led_index] = CHSV(HUE_RED, 255, 255);
+        leds[getOppositeIndex(current_pattern_led_index)] = CHSV(HUE_BLUE, 255, 255);
+
+        FastLED.show();
+    }
+}
+
+void propeller(bool firstTime) {
+    if ((current_time - pattern_last_frame_time) >= 25) {
+        pattern_last_frame_time = current_time;
+
+        current_pattern_led_index++;
+        int N3 = int(numLEDs / 3);
+        int N12 = int(numLEDs / 12);
+
+        for (int i = 0; i < N3; i++) {
+            int j0 = (current_pattern_led_index + i + numLEDs - N12) % numLEDs;
+            int j1 = (j0 + N3) % numLEDs;
+            int j2 = (j1 + N3) % numLEDs;
+            leds[j0] = CHSV(HUE_RED, 255, 255);
+            leds[j1] = CHSV(HUE_GREEN, 255, 255);
+            leds[j2] = CHSV(HUE_BLUE, 255, 255);
+        }
+
+        FastLED.show();
+    }
+}
+
 void blink(bool firstTime) {
     static uint8_t step = 0;
-    static unsigned long this_start_time;
 
     if (firstTime) {
         step = 0;
-        this_start_time = current_time;
         FastLED.showColor(getNextColor());
-    } else if ((current_time - this_start_time) >= 1000) {
-        this_start_time = current_time;
+    } else if ((current_time - pattern_last_frame_time) >= 1000) {
+        pattern_last_frame_time = current_time;
         step = (step + 1) % 2;
 
         if (step == 0) {
@@ -218,41 +261,37 @@ void blink(bool firstTime) {
     }
 }
 
-void _fill(CRGB color) {
-    for (uint8_t i = 0; i < numLEDs; i++) {
-        leds[i] = color;
-    }
-}
-
 /// @brief Start filling from the middle to the ends. Restart with a new color.
 /// @param firstTime
 void dropFill(bool firstTime) {
     static uint8_t left = 0;
     static uint8_t right = 0;
-    static unsigned long this_start_time;
+    bool show = true;
 
     if (firstTime) {
         left = right = numLEDs / 2;
-        this_start_time = current_time;
-        _fill(CRGB::Black);
+        fillArray(CRGB::Black);
         leds[left] = getNextColor();
-        FastLED.show();
-    } else if ((current_time - this_start_time) >= 100) {
+    } else if ((current_time - pattern_last_frame_time) >= 100) {
         left--;
         right++;
 
-        if (left < 0 || right > (numLEDs - 1)) {            // We have reached the edge
-            if ((current_time - this_start_time) >= 1500) { // Wait a bit longer upon completion
+        if (left < 0 || right > (numLEDs - 1)) {                    // We have reached the edge
+            if ((current_time - pattern_last_frame_time) >= 1500) { // Wait a bit longer upon completion
                 left = right = numLEDs / 2;
-                this_start_time = current_time;
-                _fill(CRGB::Black);
+                pattern_last_frame_time = current_time;
+                fillArray(CRGB::Black);
                 leds[left] = getNextColor();
-                FastLED.show();
+            } else {
+                show = false;
             }
         } else {
             leds[left] = leds[left + 1]; // Copy the color
             leds[right] = leds[right - 1];
-            this_start_time = current_time;
+            pattern_last_frame_time = current_time;
+        }
+
+        if (show) {
             FastLED.show();
         }
     }
@@ -262,15 +301,16 @@ void dropFill(bool firstTime) {
 /// @param firstTime
 void outline(bool firstTime) {
     static uint8_t offset;
-    static unsigned long this_start_time;
 
     if (firstTime) {
         offset = 0;
     }
 
-    if (firstTime || (current_time - this_start_time) >= 100) {
-        for (uint8_t i = 0; i < numLEDs; i++) {
+    if ((current_time - pattern_last_frame_time) >= 100) {
+        pattern_last_frame_time = current_time;
+        offset = (offset + 1) % 3;
 
+        for (uint8_t i = 0; i < numLEDs; i++) {
             switch ((i + offset) % 3) {
             case 1:
                 leds[i] = CRGB::Green;
@@ -284,13 +324,11 @@ void outline(bool firstTime) {
             }
         }
 
-        offset = (offset + 1) % 3;
+        FastLED.show();
     }
 }
 
 } // namespace Patterns
-
-void nextPattern();
 
 const char *getPatternName(uint8_t index) {
     return (index < 0 || index >= totalPatterns) ? "" : Patterns::patternNames[index];
@@ -382,7 +420,10 @@ void setPattern(uint8_t newValue) {
     DEBUG_MSG_P(PSTR("[WS2812] setPattern(%d) current=%d\n"), newValue, currentPatternIndex);
     if (currentPatternIndex != newValue) {
         currentPatternIndex = newValue;
+
         currentPatternFirstCall = true;
+        pattern_last_frame_time = 0; // Reset pattern frame time
+
         setSetting(SETTING_PATTERN, currentPatternIndex);
         saveSettings();
         mqttSendPattern();
@@ -458,6 +499,7 @@ void buildDiscoveryFxList(JsonObject &json) {
     }
 }
 
+/// @brief Commands related functions
 namespace commands {
 
 static void showInfo(::terminal::CommandContext &ctx) {
@@ -618,7 +660,7 @@ void setup() {
     patternDuration = constrain(getSetting(SETTING_PATTERNDURATION, DEFAULT_PATTERN_DURATION), MIN_PATTERN_DURATION,
                                 MAX_PATTERN_DURATION);
 
-    FastLED.showColor(CRGB::Orange);    //Start with Orange fill
+    FastLED.showColor(CRGB::Orange); // Start with Orange fill
 
     initialize(getSetting(SETTING_NUM_LEDS, DEFAULT_NUM_LEDS), getSetting(SETTING_ON, DEFAULT_ON_STATE),
                getSetting(SETTING_PATTERN, DEFAULT_PATTERN));
