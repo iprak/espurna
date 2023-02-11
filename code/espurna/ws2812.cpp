@@ -42,7 +42,7 @@ PROGMEM_STRING(SETTING_PATTERNDURATION, "ws2812.pd");
 #define DEFAULT_PLAYLIST false
 #define DEFAULT_PATTERN_DURATION 30 // seconds
 #define DEFAULT_ON_STATE true
-#define DEFAULT_BRIGHTNESS 200
+#define DEFAULT_BRIGHTNESS 255
 
 #define DEBUG_LOG_PERIOD 15000
 
@@ -71,6 +71,9 @@ unsigned long current_time = 0;
 // unsigned long last_msg_time = 0;
 // bool showLoopMessage = false;
 
+byte current_brightness;
+bool brightness_increasing;
+
 /// @brief Last frame render time for a pattern
 unsigned long pattern_last_frame_time;
 
@@ -93,12 +96,14 @@ void random(bool);
 void redBlueBounce(bool);
 void rotatingRedBlue(bool);
 void propeller(bool);
+void gradient(bool);
+void pinkGlow(bool);
 
 const PatternList patternFns = {blink,       dropFill, outline,       propeller,      rainbow,
-                                rainbowLoop, random,   redBlueBounce, rotatingRedBlue};
+                                rainbowLoop, random,   redBlueBounce, rotatingRedBlue, gradient, pinkGlow};
 
 const char *patternNames[] = {"blink",       "dropFill", "outline",       "propeller",      "rainbow",
-                              "rainbowLoop", "random",   "redBlueBounce", "rotatingRedBlue"};
+                              "rainbowLoop", "random",   "redBlueBounce", "rotatingRedBlue", "gradient", "pinkGlow"};
 
 /// @brief Clear all LEDs
 void clearAll() { FastLED.clear(true); }
@@ -219,6 +224,47 @@ void rotatingRedBlue(bool firstTime) {
 
         FastLED.show();
     }
+}
+
+void gradient(bool firstTime) {
+    if ((current_time - pattern_last_frame_time) >= 10) {
+        pattern_last_frame_time = current_time;
+
+        byte time = millis() >> 2;
+        for (uint8_t i = 0; i < numLEDs; i++)
+        {
+            byte x = time - 8*i;
+            leds[i] = CRGB(x, 255 - x, x);
+        }
+
+        FastLED.show();
+    }
+}
+
+
+void pinkGlow(bool firstTime) {
+    if (firstTime) {
+        fillArray(CRGB::Pink);
+        FastLED.setBrightness(DEFAULT_BRIGHTNESS);
+        current_brightness = DEFAULT_BRIGHTNESS;
+        brightness_increasing = false;
+    }
+    else if ((current_time - pattern_last_frame_time) >= 15) {
+        pattern_last_frame_time = current_time;
+
+        if (brightness_increasing) {
+            current_brightness --;
+            if (current_brightness == DEFAULT_BRIGHTNESS) { brightness_increasing = false; }
+        }
+        else {
+            current_brightness --;
+            if (current_brightness == 0) { brightness_increasing = true; }
+        }
+        
+        FastLED.setBrightness(current_brightness);
+    }
+
+    FastLED.show();
 }
 
 void propeller(bool firstTime) {
