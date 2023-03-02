@@ -73,6 +73,11 @@ unsigned long current_time = 0;
 
 byte current_brightness;
 bool brightness_increasing;
+CRGB::HTMLColorCode patternColor1;
+CRGB::HTMLColorCode patternColor2;
+uint8_t current_pattern_hue = 0;
+uint8_t current_pattern_led_index = 0;
+
 
 /// @brief Last frame render time for a pattern
 unsigned long pattern_last_frame_time;
@@ -84,9 +89,6 @@ namespace Patterns {
 
 typedef void (*PatternList[])(bool);
 
-uint8_t current_pattern_hue = 0;
-uint8_t current_pattern_led_index = 0;
-
 void blink(bool);
 void dropFill(bool);
 void outline(bool);
@@ -95,15 +97,19 @@ void rainbowLoop(bool);
 void random(bool);
 void redBlueBounce(bool);
 void rotatingRedBlue(bool);
+void rotatingGreen(bool);
 void propeller(bool);
 void gradient(bool);
-void pinkGlow(bool);
+void redGlow(bool);
+void greenGlow(bool);
 
 const PatternList patternFns = {blink,       dropFill, outline,       propeller,      rainbow,
-                                rainbowLoop, random,   redBlueBounce, rotatingRedBlue, gradient, pinkGlow};
+                                rainbowLoop, random,   redBlueBounce, rotatingRedBlue, rotatingGreen, 
+                                gradient, redGlow, greenGlow};
 
 const char *patternNames[] = {"blink",       "dropFill", "outline",       "propeller",      "rainbow",
-                              "rainbowLoop", "random",   "redBlueBounce", "rotatingRedBlue", "gradient", "pinkGlow"};
+                              "rainbowLoop", "random",   "redBlueBounce", "rotatingRedBlue", "rotatingGreen", 
+                              "gradient", "redGlow", "greenGlow"};
 
 /// @brief Clear all LEDs
 void clearAll() { FastLED.clear(true); }
@@ -211,7 +217,7 @@ void redBlueBounce(bool firstTime) {
     }
 }
 
-void rotatingRedBlue(bool firstTime) {
+void _rotating(bool firstTime) {
     if ((current_time - pattern_last_frame_time) >= 25) {
         pattern_last_frame_time = current_time;
 
@@ -219,11 +225,29 @@ void rotatingRedBlue(bool firstTime) {
         if (current_pattern_led_index >= numLEDs) {
             current_pattern_led_index = 0;
         }
-        leds[current_pattern_led_index] = CRGB::Red;
-        leds[getOppositeIndex(current_pattern_led_index)] = CRGB::Blue;
+        leds[current_pattern_led_index] = patternColor1;
+        leds[getOppositeIndex(current_pattern_led_index)] = patternColor2;
 
         FastLED.show();
     }
+}
+
+void rotatingRedBlue(bool firstTime) {
+    if (firstTime){
+        patternColor1 = CRGB::Red;
+        patternColor2 = CRGB::Blue;
+    }
+    
+    _rotating(firstTime);
+}
+
+void rotatingGreen(bool firstTime) {
+    if (firstTime){
+        patternColor1 = CRGB::Green;
+        patternColor2 = CRGB::Black;
+    }
+    
+    _rotating(firstTime);
 }
 
 void gradient(bool firstTime) {
@@ -241,10 +265,9 @@ void gradient(bool firstTime) {
     }
 }
 
-
-void pinkGlow(bool firstTime) {
+void _glow(bool firstTime) {
     if (firstTime) {
-        fillArray(CRGB::Pink);
+        fillArray(patternColor1);
         FastLED.setBrightness(DEFAULT_BRIGHTNESS);
         current_brightness = DEFAULT_BRIGHTNESS;
         brightness_increasing = false;
@@ -253,18 +276,40 @@ void pinkGlow(bool firstTime) {
         pattern_last_frame_time = current_time;
 
         if (brightness_increasing) {
-            current_brightness --;
-            if (current_brightness == DEFAULT_BRIGHTNESS) { brightness_increasing = false; }
+            current_brightness += 5;
+            if (current_brightness >= DEFAULT_BRIGHTNESS) { 
+                current_brightness = DEFAULT_BRIGHTNESS;
+                brightness_increasing = false; 
+            }
         }
         else {
-            current_brightness --;
-            if (current_brightness == 0) { brightness_increasing = true; }
+            current_brightness -= 5;
+            if (current_brightness <= 0) { 
+                current_brightness = 0;
+                brightness_increasing = true; 
+            }
         }
         
         FastLED.setBrightness(current_brightness);
     }
 
     FastLED.show();
+}
+
+void redGlow(bool firstTime) {
+    if (firstTime) {
+        patternColor1 = CRGB::Red;
+    }
+    
+    _glow(firstTime);
+}
+
+void greenGlow(bool firstTime) {
+     if (firstTime) {
+        patternColor1 = CRGB::Green;
+    }
+    
+    _glow(firstTime);
 }
 
 void propeller(bool firstTime) {
