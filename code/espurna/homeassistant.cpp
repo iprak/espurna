@@ -148,7 +148,7 @@ public:
     //   it is **copied inside of the buffer**, and will take `strlen()` bytes
     // - allocating more objects **will silently corrupt** buffer region
     //   while there are *some* checks, current version is going to break
-    static constexpr size_t BufferSize { JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(6) };
+    static constexpr size_t BufferSize { JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7) };
 
     using Buffer = StaticJsonBuffer<BufferSize>;
     using BufferPtr = std::unique_ptr<Buffer>;
@@ -175,6 +175,19 @@ public:
         _root["sw"] = _build->version.c_str();
         _root["mf"] = _build->manufacturer.c_str();
         _root["mdl"] = _build->device.c_str();
+        
+        //configuration_url
+        const char *ipBuffer = wifiStaIp().toString().c_str();
+
+        #if WEB_SSL_ENABLED
+        char *url = (char *)malloc(8 + strlen(ipBuffer) + 1);
+        sprintf(url, "https://%s", ipBuffer);
+        #else
+        char *url = (char *)malloc(7 + strlen(ipBuffer) + 1);
+        sprintf(url, "http://%s", ipBuffer);
+        #endif // WEB_SSL_ENABLED
+
+        _root["cu"] = (const char *)url;
     }
 
     const String& name() const {
@@ -366,13 +379,14 @@ public:
         if (!_message.length()) {
             auto& json = root();
             json[F("dev")] = _ctx.device();
+
             json[F("avty_t")] = _relay.availability.c_str();
             json[F("pl_avail")] = _relay.payload_available.c_str();
             json[F("pl_not_avail")] = _relay.payload_not_available.c_str();
             json[F("pl_on")] = _relay.payload_on.c_str();
             json[F("pl_off")] = _relay.payload_off.c_str();
             json[F("uniq_id")] = uniqueId();
-            json[F("name")] = _ctx.name() + ' ' + _index;
+            json[F("name")] = String("Relay_") + _index;
             json[F("stat_t")] = mqttTopic(MQTT_TOPIC_RELAY, _index);
             json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_RELAY, _index);
             json.printTo(_message);

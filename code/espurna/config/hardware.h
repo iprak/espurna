@@ -5401,6 +5401,85 @@
     #define LED1_PIN_INVERSE            1
     #define LED1_MODE                   LED_MODE_WIFI
 
+#elif defined(ESP_02S_CATFEEDER)
+    #define MANUFACTURER        "CATFEEDER"
+    #define DEVICE              "ESP_02S"
+
+    //#define CATFEEDER_SUPPORT       1
+    
+    #define BUTTON1_PIN         14
+    #define BUTTON1_CONFIG      BUTTON_PUSHBUTTON | BUTTON_DEFAULT_HIGH
+    
+    //Motor driver
+    #define RELAY1_PIN          12
+    #define RELAY1_TYPE         RELAY_TYPE_INVERSE
+    
+    //#define CATFEEDER_SENSOR_PIN    13
+    //#define CATFEEDER_SENSOR_DEFAULT_STATE  LOW
+
+    //DEBUG_WEB+MQTT+NTP+SCHEDULER
+    //Flash: [=====     ]  50.2% (used 524141 bytes from 1044464 bytes)
+
+    //DEBUG_WEB+MQTT
+    //Flash: [=====     ]  48.5% (used 506865 bytes from 1044464 bytes)
+
+    //DEBUG_WEB+DEBUG_SERIAL+MQTT
+    //Flash: [=====     ]  48.6% (used 507309 bytes from 1044464 bytes)
+
+    //MQTT
+    //Flash: [=====     ]  47.4% (used 495097 bytes from 1044464 bytes)
+
+    // Based on ESPURNA_MINIMAL_WEBUI
+    #define ALEXA_SUPPORT           0
+    #define API_SUPPORT             0
+    #define DEBUG_SERIAL_SUPPORT    0
+    #define DEBUG_WEB_SUPPORT       0
+    #define DOMOTICZ_SUPPORT        0
+    #define HOMEASSISTANT_SUPPORT   1
+    #define I2C_SUPPORT             0
+    #define MQTT_SUPPORT            1
+    #define NTP_SUPPORT             1
+    #define SCHEDULER_SUPPORT       1
+    #define SENSOR_SUPPORT          0
+    #define THINGSPEAK_SUPPORT      0
+    #define UART_SUPPORT            0
+
+    // Small webpage to upload the .bin
+    #define MDNS_SERVER_SUPPORT     0
+    #define WEB_SUPPORT             1
+    #define OTA_ARDUINOOTA_SUPPORT  0
+    #define OTA_WEB_SUPPORT         1
+
+    // No Telnet support
+    #define DEBUG_TELNET_SUPPORT    0
+    #define TELNET_AUTHENTICATION   0
+    #define TELNET_STA              0
+
+    // Extra light-weight image
+    #define BUTTON_SUPPORT          1
+    #define LED_SUPPORT             0
+    #define RELAY_SUPPORT           1
+
+#elif defined(ESP12E_CATFEEDER)
+
+    #define MANUFACTURER        "CATFEEDER"
+    #define DEVICE              "ESP_12E"
+   
+    //Motor driver
+    #define RELAY1_PIN          14
+    #define RELAY1_TYPE         RELAY_TYPE_INVERSE
+
+    #define ALEXA_SUPPORT           0
+    #define API_SUPPORT             0
+    #define DOMOTICZ_SUPPORT        0
+    #define HOMEASSISTANT_SUPPORT   1
+    #define MQTT_SUPPORT            1
+    #define NTP_SUPPORT             1
+    #define SCHEDULER_SUPPORT       1
+    #define I2C_SUPPORT             0
+    #define SENSOR_SUPPORT          0
+    #define THINGSPEAK_SUPPORT      0
+
 #else
 
     #error "UNSUPPORTED HARDWARE!!"
