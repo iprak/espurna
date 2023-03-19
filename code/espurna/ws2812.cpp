@@ -549,6 +549,14 @@ void turnOnOff(bool newState) {
         if (!newState) {
             Patterns::clearAll();
         }
+        else{
+            currentPatternFirstCall = true;
+            pattern_last_frame_time = 0; // Reset pattern frame time
+
+            DEBUG_MSG_P(PSTR("[WS2812] %s, %d leds, playList %s, patternDuration=%d\n"),
+                        getPatternName(WS2812Controller::currentPatternIndex), numLEDs,
+                        playlistEnabled ? "on" : "off", patternDuration);
+        }
     }
 }
 
