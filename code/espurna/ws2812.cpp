@@ -518,6 +518,8 @@ void setPattern(uint8_t newValue) {
         currentPatternFirstCall = true;
         pattern_last_frame_time = 0; // Reset pattern frame time
 
+        pattern_start_time = current_time;  //Reset playlist timer
+
         setSetting(SETTING_PATTERN, currentPatternIndex);
         saveSettings();
         mqttSendPattern();
@@ -526,14 +528,15 @@ void setPattern(uint8_t newValue) {
 
 /// @brief Sets new pattern by name. Sends MQTT update.
 /// @param patternName
-void setPatternByName(const char *patternName) {
+bool setPatternByName(const char *patternName) {
     DEBUG_MSG_P(PSTR("[WS2812] setPatternByName(%s)\n"), patternName);
     for (uint8_t i = 0; i < totalPatterns; i++) {
-        if (strcmp(Patterns::patternNames[i], patternName) == 0) {
+        if (strcasecmp(Patterns::patternNames[i], patternName) == 0) {
             setPattern(i);
-            return;
+            return true;
         }
     }
+    return false;
 }
 
 /// @brief Turn strip on/off. Sends MQTT update.
@@ -618,17 +621,22 @@ static void onPattern(::terminal::CommandContext &&ctx) {
             nextPattern();
             terminalOK(ctx);
         } else {
+            //First try to treat input as number and then as string
             const auto result = parseUnsigned(ctx.argv[1], 10);
             if (result.ok) {
                 setPattern(result.value);
                 showInfo(ctx);
                 terminalOK(ctx);
-            } else {
+            } else if (setPatternByName(ctx.argv[1].c_str())){
+                showInfo(ctx);
+                terminalOK(ctx);
+            }
+            else{
                 terminalError(ctx, F("invalid argument"));
             }
         }
     } else {
-        terminalError(ctx, F("WS2812.pattern patternIndex"));
+        terminalError(ctx, F("WS2812.pattern patternIndex/name"));
     }
 }
 
