@@ -31,6 +31,8 @@ namespace espurna {
 namespace homeassistant {
 namespace {
 
+static char *hass_configuration_url = (char *)malloc(8 + 16 + 1);   //enough to hold https://123.123.123.123
+
 namespace build {
 
 PROGMEM_STRING(Prefix, HOMEASSISTANT_PREFIX);
@@ -160,6 +162,19 @@ class Device {
         _root["sw"] = _build->version.c_str();
         _root["mf"] = _build->manufacturer.c_str();
         _root["mdl"] = _build->device.c_str();
+
+        //configuration_url
+        const char *ipBuffer = wifiStaIp().toString().c_str();
+        if (strlen(ipBuffer) > 0)
+        {
+            #if WEB_SSL_ENABLED
+            sprintf(hass_configuration_url, "https://%s", ipBuffer);
+            #else
+            sprintf(hass_configuration_url, "http://%s", ipBuffer);
+             #endif // WEB_SSL_ENABLED
+            
+            _root["cu"] = (const char *)hass_configuration_url;
+        }
     }
 
     const String &name() const { return _config->name; }
@@ -509,7 +524,7 @@ class WS2812Discovery : public Discovery {
             json[F("uniq_id")] = uniqueId();
 
             if (_index == DISCOVERY_INDEX_LIGHT) {
-                json[F("name")] = _ctx.name();
+                json[F("name")] = F("light");
                 json[F("ic")] = F("mdi:led-strip-variant");
                 json[F("pl_on")] = quote(relayPayload(PayloadStatus::On).toString());
                 json[F("pl_off")] = quote(relayPayload(PayloadStatus::Off).toString());
@@ -522,21 +537,21 @@ class WS2812Discovery : public Discovery {
                 WS2812Controller::buildDiscoveryFxList(json);
 
             } else if (_index == DISCOVERY_INDEX_NUMLEDS) {
-                json[F("name")] = _ctx.name() + F(" numLEDs");
+                json[F("name")] = F("numLEDs");
                 json[F("ic")] = F("mdi:numeric");
                 json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_NUMLEDS);
                 json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_NUMLEDS);
                 json[F("min")] = 0;
                 json[F("max")] = MAX_NUM_LEDS;
             } else if (_index == DISCOVERY_INDEX_PLAYLIST) {
-                json[F("name")] = _ctx.name() + F(" playlist");
+                json[F("name")] = F("playlist");
                 json[F("ic")] = F("mdi:playlist-play");
                 json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_PLAYLIST);
                 json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_PLAYLIST);
                 json[F("pl_on")] = quote(relayPayload(PayloadStatus::On).toString());
                 json[F("pl_off")] = quote(relayPayload(PayloadStatus::Off).toString());
             } else if (_index == DISCOVERY_INDEX_PATTERNDURATION) {
-                json[F("name")] = _ctx.name() + F(" patternDuration");
+                json[F("name")] = F("patternDuration");
                 json[F("ic")] = F("mdi:timer-play");
                 json[F("stat_t")] = mqttTopic(MQTT_TOPIC_WS2812_PATTERNDURATION);
                 json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_WS2812_PATTERNDURATION);
