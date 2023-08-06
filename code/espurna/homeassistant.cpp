@@ -178,16 +178,19 @@ public:
         
         //configuration_url
         const char *ipBuffer = wifiStaIp().toString().c_str();
+        int size = strlen(ipBuffer);
+        if (size > 0)
+        {        
+            #if WEB_SSL_ENABLED
+            char *url = (char *)malloc(8 + size + 1);
+            sprintf(url, "https://%s", ipBuffer);
+            #else
+            char *url = (char *)malloc(7 + size + 1);
+            sprintf(url, "http://%s", ipBuffer);
+            #endif // WEB_SSL_ENABLED
 
-        #if WEB_SSL_ENABLED
-        char *url = (char *)malloc(8 + strlen(ipBuffer) + 1);
-        sprintf(url, "https://%s", ipBuffer);
-        #else
-        char *url = (char *)malloc(7 + strlen(ipBuffer) + 1);
-        sprintf(url, "http://%s", ipBuffer);
-        #endif // WEB_SSL_ENABLED
-
-        _root["cu"] = (const char *)url;
+            _root["cu"] = (const char *)url;
+        }
     }
 
     const String& name() const {
