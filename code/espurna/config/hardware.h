@@ -206,8 +206,8 @@
 #elif defined(CUSTOM_WS2812)
 
     // Info
-    #define MANUFACTURER        "CUSTOM"
-    #define DEVICE              "WS2812"
+    #define MANUFACTURER        "WS2812"
+    #define DEVICE              "WEMOS"
 
     #define WS2812_DATA_PIN        2   //D4
     #define LED1_PIN               16   //Wemos 2nd onboard LED

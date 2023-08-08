@@ -137,7 +137,7 @@ class Device {
     //   it is **copied inside of the buffer**, and will take `strlen()` bytes
     // - allocating more objects **will silently corrupt** buffer region
     //   while there are *some* checks, current version is going to break
-    static constexpr size_t BufferSize{JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(6)};
+    static constexpr size_t BufferSize{JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7)};
 
     using Buffer = StaticJsonBuffer<BufferSize>;
     using BufferPtr = std::unique_ptr<Buffer>;
@@ -171,8 +171,9 @@ class Device {
             sprintf(hass_configuration_url, "https://%s", ipBuffer);
             #else
             sprintf(hass_configuration_url, "http://%s", ipBuffer);
-             #endif // WEB_SSL_ENABLED
+            #endif // WEB_SSL_ENABLED
             
+            DEBUG_MSG_P(PSTR("[HA] cu=%s\n"), hass_configuration_url);  //need this to make things work
             _root["cu"] = (const char *)hass_configuration_url;
         }
     }
