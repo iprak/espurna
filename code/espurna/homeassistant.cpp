@@ -30,6 +30,8 @@ namespace espurna {
 namespace homeassistant {
 namespace {
 
+static char *hass_configuration_url = (char *)malloc(8 + 16 + 1);   //enough to hold https://123.123.123.123
+
 namespace build {
 
 PROGMEM_STRING(Prefix, HOMEASSISTANT_PREFIX);
@@ -178,18 +180,16 @@ public:
         
         //configuration_url
         const char *ipBuffer = wifiStaIp().toString().c_str();
-        int size = strlen(ipBuffer);
-        if (size > 0)
-        {        
+        if (strlen(ipBuffer) > 0)
+        {
             #if WEB_SSL_ENABLED
-            char *url = (char *)malloc(8 + size + 1);
-            sprintf(url, "https://%s", ipBuffer);
+            sprintf(hass_configuration_url, "https://%s", ipBuffer);
             #else
-            char *url = (char *)malloc(7 + size + 1);
-            sprintf(url, "http://%s", ipBuffer);
+            sprintf(hass_configuration_url, "http://%s", ipBuffer);
             #endif // WEB_SSL_ENABLED
 
-            _root["cu"] = (const char *)url;
+            DEBUG_MSG_P(PSTR("[HA] cu=%s\n"), hass_configuration_url);  //need this to make things work
+            _root["cu"] = (const char *)hass_configuration_url;
         }
     }
 
