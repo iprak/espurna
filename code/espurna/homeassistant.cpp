@@ -31,7 +31,7 @@ namespace espurna {
 namespace homeassistant {
 namespace {
 
-static char *hass_configuration_url = (char *)malloc(8 + 16 + 1);   //enough to hold https://123.123.123.123
+//static char *hass_configuration_url = (char *)malloc(8 + 16 + 1);   //enough to hold https://123.123.123.123
 
 namespace build {
 
@@ -137,7 +137,7 @@ class Device {
     //   it is **copied inside of the buffer**, and will take `strlen()` bytes
     // - allocating more objects **will silently corrupt** buffer region
     //   while there are *some* checks, current version is going to break
-    static constexpr size_t BufferSize{JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7)};
+    static constexpr size_t BufferSize{JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(6)};
 
     using Buffer = StaticJsonBuffer<BufferSize>;
     using BufferPtr = std::unique_ptr<Buffer>;
@@ -163,19 +163,19 @@ class Device {
         _root["mf"] = _build->manufacturer.c_str();
         _root["mdl"] = _build->device.c_str();
 
-        //configuration_url
-        const char *ipBuffer = wifiStaIp().toString().c_str();
-        if (strlen(ipBuffer) > 0)
-        {
-            #if WEB_SSL_ENABLED
-            sprintf(hass_configuration_url, "https://%s", ipBuffer);
-            #else
-            sprintf(hass_configuration_url, "http://%s", ipBuffer);
-            #endif // WEB_SSL_ENABLED
+        // //configuration_url
+        // const char *ipBuffer = wifiStaIp().toString().c_str();
+        // if (strlen(ipBuffer) > 0)
+        // {
+        //     #if WEB_SSL_ENABLED
+        //     sprintf(hass_configuration_url, "https://%s", ipBuffer);
+        //     #else
+        //     sprintf(hass_configuration_url, "http://%s", ipBuffer);
+        //     #endif // WEB_SSL_ENABLED
             
-            DEBUG_MSG_P(PSTR("[HA] cu=%s\n"), hass_configuration_url);  //need this to make things work
-            _root["cu"] = (const char *)hass_configuration_url;
-        }
+        //     DEBUG_MSG_P(PSTR("[HA] cu=%s\n"), hass_configuration_url);  //need this to make things work
+        //     _root["cu"] = (const char *)hass_configuration_url;
+        // }
     }
 
     const String &name() const { return _config->name; }
