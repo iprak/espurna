@@ -102,14 +102,15 @@ void propeller(bool);
 void gradient(bool);
 void redGlow(bool);
 void greenGlow(bool);
+void colors(bool);
 
 const PatternList patternFns = {blink,       dropFill, outline,       propeller,      rainbow,
                                 rainbowLoop, random,   redBlueBounce, rotatingRedBlue, rotatingGreen, 
-                                gradient, redGlow, greenGlow};
+                                gradient, redGlow, greenGlow, colors};
 
 const char *patternNames[] = {"blink",       "dropFill", "outline",       "propeller",      "rainbow",
                               "rainbowLoop", "random",   "redBlueBounce", "rotatingRedBlue", "rotatingGreen", 
-                              "gradient", "redGlow", "greenGlow"};
+                              "gradient", "redGlow", "greenGlow", "colors"};
 
 /// @brief Clear all LEDs
 void clearAll() { FastLED.clear(true); }
@@ -310,6 +311,29 @@ void greenGlow(bool firstTime) {
     }
     
     _glow(firstTime);
+}
+
+void colors(bool firstTime){
+    if (firstTime) {
+        for (uint8_t i = 0; i < numLEDs; i++) {
+            switch(i % 4){
+                case 0: 
+                    leds[i] = CRGB::Red;
+                    break;
+                case 1: 
+                    leds[i] = CRGB::Yellow;
+                    break;
+                case 2: 
+                    leds[i] = CRGB::Blue;
+                    break;
+                case 3: 
+                    leds[i] = CRGB::Green;
+                    break;
+            }
+        }
+
+        FastLED.show();
+    }
 }
 
 void propeller(bool firstTime) {
