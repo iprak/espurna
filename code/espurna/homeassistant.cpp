@@ -415,7 +415,7 @@ class WS2811Discovery : public Discovery {
             json[F("pl_on")] = _relay.payload_on.c_str();
             json[F("pl_off")] = _relay.payload_off.c_str();
             json[F("uniq_id")] = uniqueId();
-            json[F("name")] = _ctx.name() + ' ' + _index;
+            json[F("name")] = _index;   //_ctx.name() will get precied by HomeAssistant
             json[F("stat_t")] = mqttTopic(MQTT_TOPIC_RELAY, _index);
             json[F("cmd_t")] = mqttTopicSetter(MQTT_TOPIC_RELAY, _index);
 
